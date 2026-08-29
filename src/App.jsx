@@ -5,8 +5,7 @@ const CATEGORIES = {
   appetizer:{key:"appetizer",emoji:"🐙",label:"Appetizers",subtitle:"Quick Movement",duration:5*60,color:"#C8A8E9",colorLight:"#EDE0F7",colorDark:"#9B6FCF",
     defaults:[{id:"a1",name:"Stretch & Shake",desc:"Streck dich wie ein Seestern 🌟"},{id:"a2",name:"Tanz-Break",desc:"30 Sek Lieblingslied tanzen 💃"},{id:"a3",name:"Kaltes Wasser",desc:"Hände unter kaltes Wasser"},{id:"a4",name:"Hampelmann",desc:"20 Jumping Jacks! 🦘"},{id:"a5",name:"Fenster auf!",desc:"Frische Luft schnappen ☁️ "}]},
   entree:{key:"entree",emoji:"🦊",label:"Entrées",subtitle:"Deep Work",duration:20*60,color:"#FFB5A7",colorLight:"#FFE0DA",colorDark:"#E8876F",
-    defaults:[{id:"e1",name:"Power-Fokus",desc:"Eine Aufgabe, kein Handy 🎯"},{id:"e2",name:"Schreib-Sprint",desc:"Alles raus was im Kopf ist ✍️ "},{id:"e3",name:"Sortier-Session",desc:"Einen Bereich aufräumen 
-📦"},{id:"e4",name:"Lern-Block",desc:"Etwas Neues anschauen 📚"},{id:"e5",name:"Planungs-Zeit",desc:"Woche planen 🗓️ "}]},
+    defaults:[{id:"e1",name:"Power-Fokus",desc:"Eine Aufgabe, kein Handy 🎯"},{id:"e2",name:"Schreib-Sprint",desc:"Alles raus was im Kopf ist ✍️ "},{id:"e3",name:"Sortier-Session",desc:"Einen Bereich aufräumen 📦"},{id:"e4",name:"Lern-Block",desc:"Etwas Neues anschauen 📚"},{id:"e5",name:"Planungs-Zeit",desc:"Woche planen 🗓️ "}]},
   side:{key:"side",emoji:"🐛",label:"Sides",subtitle:"Creative Play",duration:10*60,color:"#B8E8D0",colorLight:"#DFF5EA",colorDark:"#6FC49E",
     defaults:[{id:"s1",name:"Doodle-Time",desc:"Kritzle was dir einfällt 🎨"},{id:"s2",name:"Brainstorm",desc:"Wilde Ideen sammeln 💡"},{id:"s3",name:"Musik machen",desc:"Summen, klopfen, spielen 
 🎵"},{id:"s4",name:"Origami",desc:"Endlose Möglichkeiten 🦢"},{id:"s5",name:"Tagträumen",desc:"Augen zu & Geschichte erfinden 🌈"}]},
