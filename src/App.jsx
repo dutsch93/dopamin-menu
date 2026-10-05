@@ -47,6 +47,10 @@ const INTERVALS=[{id:"daily",label:"Täglich",days:1},{id:"every2",label:"Alle 2
 const REMIND_OPTS=[{id:"none",label:"Aus"},{id:"overdue",label:"Wenn überfällig"},{id:"1day",label:"1 Tag vorher",hoursB4:24},{id:"2days",label:"2 Tage vorher",hoursB4:48}];
 
 function getBatColor(p){if(p>80)return"#5EC269";if(p>60)return"#A8D040";if(p>40)return"#F0C040";if(p>20)return"#E86A5A";return"#B83A3A";}
+// Gleiche Stufen wie getBatColor, aber dunkler – für Text auf hellem Hintergrund (Kontrast mind. 4,5:1)
+function getBatTextColor(p){if(p>80)return"#2E7D3A";if(p>60)return"#5C7A12";if(p>40)return"#8A6A00";if(p>20)return"#B5402F";return"#9E2F2F";}
+// Motivations-Nachricht auf Home, abhängig vom Batterie-Durchschnitt (null = noch keine Batterie eingerichtet)
+function homeMsg(p){if(p===null)return"Willkommen! Starte mit dem Menü oder richte deine Batterien ein.";if(p>80)return"Du rockst das! Weiter so!";if(p>60)return"Gut dabei – bleib dran!";if(p>40)return"Ein kleiner Schritt reicht heute.";if(p>20)return"Deine Batterien brauchen Liebe.";return"Fang mit einer einzigen Sache an.";}
 function getBatLabel(p){if(p>80)return"Voll geladen";if(p>60)return"Gut dabei";if(p>40)return"Wird langsam knapp";if(p>20)return"Niedrig — aufladen!";return"Kritisch — kleine Schritte!";}
 function isOver(ld,d){if(!ld)return true;return(Date.now()-new Date(ld).getTime())/36e5>d*24;}
 function hoursUntilDue(ld,d){if(!ld)return-9999;return(d*24)-((Date.now()-new Date(ld).getTime())/36e5);}
@@ -230,6 +234,8 @@ export default function DopaminMenu(){
 
   const cfgCats=catOrder.filter(cid=>habitsFor(cid).length>0);
   const avgBat=cfgCats.length?Math.round(cfgCats.reduce((s,cid)=>s+calcBat(habitsFor(cid)),0)/cfgCats.length):null;
+  // Home: die 3 leersten Batterien
+  const lowBats=cfgCats.map(cid=>({cid,pct:calcBat(habitsFor(cid))})).sort((a,b)=>a.pct-b.pct).slice(0,3);
   const onDS=(e,id)=>{setDragId(id);e.dataTransfer.effectAllowed="move";};const onDO=e=>{e.preventDefault();};const onDr=(e,tid)=>{e.preventDefault();if(!dragId||dragId===tid)return;setCatOrder(p=>{const a=[...p],fi=a.indexOf(dragId),ti=a.indexOf(tid);a.splice(fi,1);a.splice(ti,0,dragId);return a;});setDragId(null);};
   const getQT=cid=>{const cat=BAT_CATS.find(c=>c.id===cid);const ch=habitsFor(cid);const ov=ch.filter(h=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];return isOver(h.lastDone,iv.days);});const hp=SOFORTHILFE.find(p=>p.id===cat?.helpId);const tips=[];if(ov.length){const e=ov.reduce((a,b)=>(a.weight||1)<(b.weight||1)?a:b);const tw=ch.reduce((s,h)=>s+(h.weight||1),0);tips.push({icon:"bolt",title:"Schnellster Boost: "+e.name,text:`+${Math.round(((e.weight||1)/tw)*100)}%`,action:()=>checkIn(e.id)});}if(hp?.tips.length){const t=hp.tips[Math.floor(Math.random()*hp.tips.length)];tips.push({animal:hp.id,title:t.title,text:t.text,link:cat?.helpId});}tips.push({icon:"timer",title:"Nur 1 Minute",text:"Timer auf 60 Sek. Tu das Einfachste."});return tips.slice(0,3);};
   const ordCfg=catOrder.filter(cid=>habitsFor(cid).length>0);const ordEmpty=catOrder.filter(cid=>habitsFor(cid).length===0);
@@ -402,8 +408,33 @@ export default function DopaminMenu(){
           {addTipFor===pr.id?(<div style={{background:"#fff",borderRadius:16,border:`2.5px solid ${pr.color}`,padding:14,marginTop:10,animation:"fadeIn .2s ease-out"}}><label style={S.fL}>Icon:</label><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{ICON_PICK.map(e=>(<button key={e} aria-label={e.replace(/_/g," ")} aria-pressed={tIcon===e} style={{width:32,height:32,borderRadius:7,border:`2px solid ${tIcon===e?pr.color:"transparent"}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:tIcon===e?pr.colorLight:"transparent"}} onClick={()=>setTIcon(e)}><Icon name={e} color={pr.colorDark} size={18}/></button>))}</div><input style={{...S.inp,borderColor:pr.color,marginTop:6}} placeholder="Titel" value={tTitle} onChange={e=>setTTitle(e.target.value)} autoFocus/><textarea style={{...S.inp,borderColor:pr.color,marginTop:5,minHeight:50,resize:"vertical"}} placeholder="Was hilft dir?" value={tText} onChange={e=>setTText(e.target.value)}/><div style={{display:"flex",gap:6,marginTop:6}}><button style={{...S.ab,background:pr.color,color:"#fff",flex:1,padding:"9px 0"}} onClick={()=>addCT(pr.id)}>OK</button><button style={{...S.ab,background:"#E8E0D8",color:"#888",flex:1,padding:"9px 0"}} onClick={()=>{setAddTipFor(null);setTTitle("");setTText("");}}>×</button></div></div>):(<button style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",padding:"10px",borderRadius:14,border:`2.5px dashed ${pr.color}`,background:"#fff",fontSize:13,fontWeight:600,fontFamily:"Fredoka,sans-serif",cursor:"pointer",marginTop:10,color:pr.colorDark}} onClick={()=>setAddTipFor(pr.id)}>+ Eigenen Tipp</button>)}
         </div>);})()}</div>}
 
-      {/* ═══ HOME (Platzhalter, wird in Task 3+4 gebaut) ═══ */}
-      {tab==="home"&&!timerOn&&<div style={S.soon}><Octopus size={56} animate/><p>Hier entsteht deine Startseite</p></div>}
+      {/* ═══ HOME ═══ */}
+      {tab==="home"&&!timerOn&&<div style={S.home}>
+        {/* B) Motivations-Nachricht */}
+        <p style={{...S.homeMsg,color:avgBat===null?"#7A52B3":getBatTextColor(avgBat)}}>{homeMsg(avgBat)}</p>
+
+        {/* C) Batterie-Übersicht: die 3 leersten Batterien */}
+        <section aria-label="Batterie-Übersicht">
+          <h3 style={S.secT}>Deine Batterien</h3>
+          {!cfgCats.length?(
+            <button style={S.homeCard} onClick={()=>goTab("batterie")}><Icon name="battery_charging_full" color="#4FA97F" size={22}/><span style={{flex:1,textAlign:"left"}}>Richte deine erste Batterie ein →</span></button>
+          ):lowBats[0].pct>80?(
+            <p style={S.homeOk}><Icon name="check_circle" color="#5EC269" size={20}/>Alle Batterien geladen!</p>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>{lowBats.map((b,i)=>{const bc=BAT_CATS.find(c=>c.id===b.cid);return(
+              <button key={b.cid} style={{...S.homeCard,animation:`fadeIn .3s ease-out ${i*.05}s both`}} onClick={()=>{goTab("batterie");setOpenCat(b.cid);}}>
+                <Icon name={bc.icon} color={bc.colorDark} size={22}/>
+                <span style={{flex:1,textAlign:"left"}}>{bc.label}</span>
+                <span style={S.miniBar}><span style={{display:"block",height:"100%",width:`${b.pct}%`,background:getBatColor(b.pct),borderRadius:4}}/></span>
+                <span style={{width:38,textAlign:"right",fontWeight:700,color:getBatTextColor(b.pct)}}>{b.pct}%</span>
+              </button>
+            );})}</div>
+          )}
+        </section>
+
+        {/* E) Zufalls-Aktivität (öffnet dasselbe Modal wie im Menü) */}
+        <button style={S.rndBtn} onClick={pickR}><Icon name="casino" color="#9B6FCF" size={20}/>Ich brauch was!</button>
+      </div>}
 
       {/* ═══ BREAKER (Platzhalter, wird ab Task 6 gebaut) ═══ */}
       {tab==="breaker"&&!timerOn&&<div style={S.soon}><Caterpillar size={56} animate/><p>Der Breaker kommt bald</p></div>}
@@ -463,6 +494,12 @@ const S={
   footBtn:{flex:1,maxWidth:96,minHeight:52,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,border:"none",background:"none",cursor:"pointer",fontFamily:"'Fredoka',sans-serif",padding:0},
   footIcon:{display:"flex",padding:"4px 14px",borderRadius:14,transition:"background .2s, opacity .2s"},
   footLbl:{fontSize:10,fontWeight:600,transition:"color .2s"},
+  // Home-Dashboard
+  home:{padding:"4px 16px",display:"flex",flexDirection:"column",gap:14},
+  homeMsg:{textAlign:"center",fontSize:14,fontWeight:600,margin:"6px 0 0"},
+  homeCard:{display:"flex",alignItems:"center",gap:10,width:"100%",background:"#fff",border:"none",borderRadius:16,padding:"10px 12px",boxShadow:"0 2px 10px rgba(180,160,200,.1)",fontFamily:"'Fredoka',sans-serif",fontSize:13,fontWeight:600,color:"#5B4A6A",cursor:"pointer"},
+  homeOk:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#fff",borderRadius:16,padding:12,fontSize:13,fontWeight:600,color:"#2E7D3A",boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
+  miniBar:{display:"block",width:70,height:8,borderRadius:4,background:"#F0EAF5",overflow:"hidden",flexShrink:0},
   soon:{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"40px 16px",fontSize:14,fontWeight:600,color:"#9B8AAE",textAlign:"center"},
   rndBtn:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,margin:"8px auto 4px",padding:"9px 22px",borderRadius:50,border:"2.5px solid #E8D0F0",background:"linear-gradient(135deg,#F5E6FF,#FFE0DA 50%,#DFF5EA)",fontSize:13.5,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer",boxShadow:"0 3px 16px rgba(200,168,233,.2)"},
   cats:{padding:"4px 16px",display:"flex",flexDirection:"column",gap:16},cH:{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:16,marginBottom:6},

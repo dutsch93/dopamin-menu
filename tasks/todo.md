@@ -103,12 +103,12 @@
 **Beschreibung:** Abschnitte B, C und E aus CLAUDE.md Abschnitt 2. Motivationstext nach Batterie-Durchschnitt, die 3 niedrigsten Batterien als Karten mit Sprung zum Batterie-Tab, der Zufalls-Button öffnet das vorhandene Modal.
 
 **Akzeptanzkriterien:**
-- [ ] Alle 6 Textvarianten (5 Stufen und „keine Batterien“) erscheinen passend
-- [ ] Tap auf eine Batterie-Karte öffnet genau diese Kategorie im Batterie-Tab
-- [ ] Sonderfälle: keine Batterien → Einrichtungs-Karte; alle über 80 % → „Alle Batterien geladen! 💚“
+- [x] Alle 6 Textvarianten (5 Stufen und „keine Batterien“) erscheinen passend
+- [x] Tap auf eine Batterie-Karte öffnet genau diese Kategorie im Batterie-Tab
+- [x] Sonderfälle: keine Batterien → Einrichtungs-Karte; alle über 80 % → „Alle Batterien geladen! 💚“
 
 **Prüfung:**
-- [ ] Browser: mit leeren Daten, mit Onboarding-Start-Habits und mit überfälligen Habits
+- [x] Browser: mit leeren Daten, mit Onboarding-Start-Habits und mit überfälligen Habits
 
 **Abhängigkeiten:** Task 2
 **Dateien:** `src/App.jsx`
