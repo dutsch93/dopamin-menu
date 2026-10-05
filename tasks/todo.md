@@ -121,12 +121,12 @@
 **Beschreibung:** Abschnitt D, vorerst nur mit Habits (die Breaker-Schritte kommen in Task 10), und Abschnitt F. Der Tipp wechselt täglich, mit dem Datum als Startwert für die Zufallsauswahl.
 
 **Akzeptanzkriterien:**
-- [ ] Die 3 dringendsten Habits mit farbigem Punkt, „Erledigt ✓“ ruft `checkIn` auf und gibt ⭐
-- [ ] Nichts fällig → „Alles erledigt — gut gemacht! 🌿“
-- [ ] Der Tipp bleibt am selben Tag gleich; Tap öffnet die passende Hilfe-Kategorie
+- [x] Die 3 dringendsten Habits mit farbigem Punkt, „Erledigt ✓“ ruft `checkIn` auf und gibt ⭐
+- [x] Nichts fällig → „Alles erledigt — gut gemacht! 🌿“
+- [x] Der Tipp bleibt am selben Tag gleich; Tap öffnet die passende Hilfe-Kategorie
 
 **Prüfung:**
-- [ ] Browser; Tipp-Wechsel durch Ändern des Datums im Prüfskript nachvollziehen
+- [x] Browser; Tipp-Wechsel durch Ändern des Datums im Prüfskript nachvollziehen
 
 **Abhängigkeiten:** Task 3
 **Dateien:** `src/App.jsx`
@@ -135,7 +135,7 @@
 ---
 
 ## ✅ Checkpoint 1: Navigation und Home
-- [ ] Alle 5 Tabs erreichbar, Home ohne Scrollen für den Kerninhalt (auf iPhone-Größe)
+- [x] Alle 5 Tabs erreichbar, Home ohne Scrollen für den Kerninhalt (auf iPhone-Größe)
 - [ ] Commit und Push auf `feature/v6` → Vercel-Vorschau gemeinsam ansehen
 - [ ] Offene Fragen aus `plan.md` beantwortet (Streak, Löschen, Bearbeiten)
 

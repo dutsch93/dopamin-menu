@@ -49,6 +49,8 @@ const REMIND_OPTS=[{id:"none",label:"Aus"},{id:"overdue",label:"Wenn überfälli
 function getBatColor(p){if(p>80)return"#5EC269";if(p>60)return"#A8D040";if(p>40)return"#F0C040";if(p>20)return"#E86A5A";return"#B83A3A";}
 // Gleiche Stufen wie getBatColor, aber dunkler – für Text auf hellem Hintergrund (Kontrast mind. 4,5:1)
 function getBatTextColor(p){if(p>80)return"#2E7D3A";if(p>60)return"#5C7A12";if(p>40)return"#8A6A00";if(p>20)return"#B5402F";return"#9E2F2F";}
+// Tipp des Tages: aus dem Datum wird eine feste Zahl berechnet -> den ganzen Tag derselbe Tipp, am nächsten Tag ein anderer
+function tipOfDay(dateStr){const all=SOFORTHILFE.flatMap(p=>p.tips.map(t=>({p,t})));let h=0;for(const c of dateStr)h=(h*31+c.charCodeAt(0))>>>0;return all[h%all.length];}
 // Motivations-Nachricht auf Home, abhängig vom Batterie-Durchschnitt (null = noch keine Batterie eingerichtet)
 function homeMsg(p){if(p===null)return"Willkommen! Starte mit dem Menü oder richte deine Batterien ein.";if(p>80)return"Du rockst das! Weiter so!";if(p>60)return"Gut dabei – bleib dran!";if(p>40)return"Ein kleiner Schritt reicht heute.";if(p>20)return"Deine Batterien brauchen Liebe.";return"Fang mit einer einzigen Sache an.";}
 function getBatLabel(p){if(p>80)return"Voll geladen";if(p>60)return"Gut dabei";if(p>40)return"Wird langsam knapp";if(p>20)return"Niedrig — aufladen!";return"Kritisch — kleine Schritte!";}
@@ -236,6 +238,11 @@ export default function DopaminMenu(){
   const avgBat=cfgCats.length?Math.round(cfgCats.reduce((s,cid)=>s+calcBat(habitsFor(cid)),0)/cfgCats.length):null;
   // Home: die 3 leersten Batterien
   const lowBats=cfgCats.map(cid=>({cid,pct:calcBat(habitsFor(cid))})).sort((a,b)=>a.pct-b.pct).slice(0,3);
+  // Home: Habits, die in den nächsten 24 Std fällig oder schon überfällig sind (dringendste zuerst, max. 3)
+  const dueHabits=habits.map(h=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];return{h,left:hoursUntilDue(h.lastDone,iv.days)};}).filter(x=>x.left<=24).sort((a,b)=>a.left-b.left).slice(0,3);
+  // Home: Tipp des Tages (Datum wird beim Öffnen der App festgehalten)
+  const[today]=useState(()=>new Date().toDateString());
+  const dayTip=tipOfDay(today);
   const onDS=(e,id)=>{setDragId(id);e.dataTransfer.effectAllowed="move";};const onDO=e=>{e.preventDefault();};const onDr=(e,tid)=>{e.preventDefault();if(!dragId||dragId===tid)return;setCatOrder(p=>{const a=[...p],fi=a.indexOf(dragId),ti=a.indexOf(tid);a.splice(fi,1);a.splice(ti,0,dragId);return a;});setDragId(null);};
   const getQT=cid=>{const cat=BAT_CATS.find(c=>c.id===cid);const ch=habitsFor(cid);const ov=ch.filter(h=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];return isOver(h.lastDone,iv.days);});const hp=SOFORTHILFE.find(p=>p.id===cat?.helpId);const tips=[];if(ov.length){const e=ov.reduce((a,b)=>(a.weight||1)<(b.weight||1)?a:b);const tw=ch.reduce((s,h)=>s+(h.weight||1),0);tips.push({icon:"bolt",title:"Schnellster Boost: "+e.name,text:`+${Math.round(((e.weight||1)/tw)*100)}%`,action:()=>checkIn(e.id)});}if(hp?.tips.length){const t=hp.tips[Math.floor(Math.random()*hp.tips.length)];tips.push({animal:hp.id,title:t.title,text:t.text,link:cat?.helpId});}tips.push({icon:"timer",title:"Nur 1 Minute",text:"Timer auf 60 Sek. Tu das Einfachste."});return tips.slice(0,3);};
   const ordCfg=catOrder.filter(cid=>habitsFor(cid).length>0);const ordEmpty=catOrder.filter(cid=>habitsFor(cid).length===0);
@@ -432,8 +439,40 @@ export default function DopaminMenu(){
           )}
         </section>
 
+        {/* D) Heute dran: fällige und überfällige Habits */}
+        <section aria-label="Heute dran">
+          <h3 style={S.secT}>Heute dran</h3>
+          {dueHabits.length===0?(
+            <p style={S.homeOk}><Icon name="eco" color="#5EC269" size={20}/>Alles erledigt – gut gemacht!</p>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>{dueHabits.map(({h,left},i)=>{const bc=BAT_CATS.find(c=>c.id===h.category);const ov=left<0;return(
+              <div key={h.id} style={{...S.homeCard,cursor:"default",animation:`fadeIn .3s ease-out ${i*.05}s both`}}>
+                <span aria-hidden="true" style={{width:10,height:10,borderRadius:5,flexShrink:0,background:ov?"#E86A5A":"#F0C040"}}/>
+                <span style={{flex:1,minWidth:0}}>
+                  <span style={{display:"block"}}>{h.name}</span>
+                  <span style={{fontSize:10.5,fontWeight:500,color:ov?"#B5402F":"#8A6A00"}}>{ov?"überfällig":"heute fällig"}</span>
+                </span>
+                {bc&&<Icon name={bc.icon} color={bc.colorDark} size={18}/>}
+                <button style={{...S.homeDone,animation:checkAnim===h.id?"checkPop .4s ease-out":"none"}} onClick={()=>checkIn(h.id)}>Erledigt <Icon name="check" size={14} style={{verticalAlign:"-3px"}}/></button>
+              </div>
+            );})}</div>
+          )}
+        </section>
+
         {/* E) Zufalls-Aktivität (öffnet dasselbe Modal wie im Menü) */}
         <button style={S.rndBtn} onClick={pickR}><Icon name="casino" color="#9B6FCF" size={20}/>Ich brauch was!</button>
+
+        {/* F) Tipp des Tages: Tap öffnet die passende Hilfe-Kategorie */}
+        <section aria-label="Tipp des Tages">
+          <h3 style={S.secT}>Tipp des Tages</h3>
+          <button style={{...S.homeCard,alignItems:"flex-start"}} onClick={()=>goToHelp(dayTip.p.id)}>
+            <MiniAnimal type={dayTip.p.id} size={40}/>
+            <span style={{flex:1,textAlign:"left"}}>
+              <span style={{display:"flex",alignItems:"center",gap:4,color:dayTip.p.colorDark}}><Icon name={dayTip.t.icon} color={dayTip.p.colorDark} size={16}/>{dayTip.t.title}</span>
+              <span style={S.clamp2}>{dayTip.t.text}</span>
+            </span>
+          </button>
+        </section>
       </div>}
 
       {/* ═══ BREAKER (Platzhalter, wird ab Task 6 gebaut) ═══ */}
@@ -499,6 +538,8 @@ const S={
   homeMsg:{textAlign:"center",fontSize:14,fontWeight:600,margin:"6px 0 0"},
   homeCard:{display:"flex",alignItems:"center",gap:10,width:"100%",background:"#fff",border:"none",borderRadius:16,padding:"10px 12px",boxShadow:"0 2px 10px rgba(180,160,200,.1)",fontFamily:"'Fredoka',sans-serif",fontSize:13,fontWeight:600,color:"#5B4A6A",cursor:"pointer"},
   homeOk:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#fff",borderRadius:16,padding:12,fontSize:13,fontWeight:600,color:"#2E7D3A",boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
+  homeDone:{border:"none",borderRadius:12,padding:"6px 12px",background:"#DFF5EA",color:"#2E7D3A",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",flexShrink:0},
+  clamp2:{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",marginTop:2,fontSize:11.5,fontWeight:500,color:"#6B5F7F",lineHeight:1.35},
   miniBar:{display:"block",width:70,height:8,borderRadius:4,background:"#F0EAF5",overflow:"hidden",flexShrink:0},
   soon:{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"40px 16px",fontSize:14,fontWeight:600,color:"#9B8AAE",textAlign:"center"},
   rndBtn:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,margin:"8px auto 4px",padding:"9px 22px",borderRadius:50,border:"2.5px solid #E8D0F0",background:"linear-gradient(135deg,#F5E6FF,#FFE0DA 50%,#DFF5EA)",fontSize:13.5,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer",boxShadow:"0 3px 16px rgba(200,168,233,.2)"},
