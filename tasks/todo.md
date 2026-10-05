@@ -148,12 +148,12 @@
 **Beschreibung:** Hilfsfunktionen oberhalb der Komponente: lokales Datum `YYYY-MM-DD`, Tage addieren, und `planDue(steps, deadline, today)`. Mit Frist werden die Schritte von heute bis heute + 80 % der Resttage verteilt, ohne Frist 1 pro Tag. Von Hand gesetzte Termine (`dueManual`) bleiben erhalten.
 
 **Akzeptanzkriterien:**
-- [ ] 5 Schritte und Frist in 10 Tagen → Termine liegen zwischen heute und Tag 8, Schritt 1 ist heute
-- [ ] Frist heute oder morgen → alle Schritte heute (kein Datum in der Vergangenheit)
-- [ ] Kein Datum → heute, +1, +2 …; Monats- und Jahreswechsel korrekt
+- [x] 5 Schritte und Frist in 10 Tagen → Termine liegen zwischen heute und Tag 8, Schritt 1 ist heute
+- [x] Frist heute oder morgen → alle Schritte heute (kein Datum in der Vergangenheit)
+- [x] Kein Datum → heute, +1, +2 …; Monats- und Jahreswechsel korrekt
 
 **Prüfung:**
-- [ ] Prüfskript im Scratchpad (Node) mit diesen Fällen, alle grün
+- [x] Prüfskript im Scratchpad (Node) mit diesen Fällen, alle grün
 
 **Abhängigkeiten:** Task 1
 **Dateien:** `src/App.jsx`

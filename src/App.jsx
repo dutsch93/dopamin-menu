@@ -94,6 +94,30 @@ const SK="dopamin_menu_v5";const ld=()=>{try{const r=localStorage.getItem(SK);re
 // Mitgelieferte Menü-Einträge immer mit dem aktuellen Text laden (z.B. nach dem Entfernen der Emojis). Eigene Einträge bleiben unverändert.
 const migI=it=>{if(!it)return defI();const o={};Object.values(CATEGORIES).forEach(c=>{o[c.key]=(it[c.key]||[]).map(x=>c.defaults.find(d=>d.id===x.id)||x);});return o;};
 
+/* ═══ BREAKER: Datum & Terminplanung ═══ */
+// Datumsangaben im Breaker sind immer lokale Kalendertage als Text "YYYY-MM-DD".
+// Bewusst NICHT toISOString(): das rechnet in UTC, und nachts wäre "heute" dann schon gestern.
+const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const parseYmd=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d);};
+const addDays=(s,n)=>{const d=parseYmd(s);d.setDate(d.getDate()+n);return ymd(d);};
+// Tage von a bis b (gerundet, damit die Zeitumstellung keinen halben Tag verschiebt)
+const daysBetween=(a,b)=>Math.round((parseYmd(b)-parseYmd(a))/864e5);
+
+// Verteilt die Termine der offenen Schritte:
+// - mit Frist: gleichmäßig von heute bis heute + 80 % der Resttage (Puffer gegen Zeitblindheit), Schritt 1 ist heute
+// - ohne Frist: 1 Schritt pro Tag ab heute
+// Erledigte Schritte und von Hand gesetzte Termine (dueManual) bleiben unverändert. Nie ein Termin in der Vergangenheit.
+function planDue(steps,deadline,today){
+  const auto=steps.filter(s=>!s.done&&!s.dueManual);
+  const span=deadline?Math.max(0,Math.floor(daysBetween(today,deadline)*0.8)):null;
+  const due={};
+  auto.forEach((s,i)=>{
+    if(span===null)due[s.id]=addDays(today,i);
+    else due[s.id]=addDays(today,auto.length>1?Math.round(i*span/(auto.length-1)):0);
+  });
+  return steps.map(s=>due[s.id]?{...s,due:due[s.id]}:s);
+}
+
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
