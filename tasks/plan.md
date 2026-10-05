@@ -66,7 +66,7 @@ Vier Dinge in dieser Reihenfolge:
 
 ### Checkpoint 3: Fertig
 - [x] Alle Akzeptanzkriterien erfüllt, CLAUDE.md auf Stand v6 (inkl. Onboarding)
-- [ ] Merge nach `main` nach deinem OK
+- [x] Merge nach `main` nach deinem OK → 05.10. live
 
 ## Risiken und Gegenmaßnahmen
 

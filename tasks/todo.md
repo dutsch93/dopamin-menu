@@ -279,4 +279,4 @@
 ## ✅ Checkpoint 3: Fertig
 - [x] Alle Akzeptanzkriterien oben erfüllt
 - [x] CLAUDE.md aktualisiert: Stand v6, 5 Tabs, Onboarding dokumentiert, Abschnitt „Änderungen“ abgeschlossen
-- [ ] Merge `feature/v6` → `main` **nach deinem OK** (Vercel stellt live)
+- [x] Merge `feature/v6` → `main` **nach deinem OK** (Vercel stellt live) → 05.10. live (`483c45d`)
