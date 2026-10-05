@@ -117,11 +117,28 @@ function planDue(steps,deadline,today){
   });
   return steps.map(s=>due[s.id]?{...s,due:due[s.id]}:s);
 }
+// Datum kurz auf Deutsch, z.B. "15. Okt."
+const fmtDay=s=>parseYmd(s).toLocaleDateString("de-DE",{day:"numeric",month:"short"});
+
+// Breaker-Kategorien mit Schritt-Vorlagen (werden beim Zerlegen vorausgefüllt und sind editierbar).
+// colorDark/colorLight: geprüfte Text-/Hintergrundfarben (Kontrast mind. 4,5:1)
+const BREAKER_CATS=[
+  {id:"alltag",icon:"home",label:"Alltag",color:"#F4A0B5",colorDark:"#A83D61",colorLight:"#FCE4EA",steps:["Entscheide wann du es machst","Bereite vor was du brauchst","Mach den ersten kleinen Schritt","Mach weiter oder plane den nächsten Block","Abschließen und aufräumen"]},
+  {id:"soziales",icon:"group",label:"Soziales",color:"#A8D8EA",colorDark:"#326B85",colorLight:"#E7F4F9",steps:["Nachricht schreiben","Termin oder Zeitpunkt vorschlagen","In Kalender eintragen","Vorbereiten (Ort, Anfahrt, was mitnehmen)","Durchführen und genießen"]},
+  {id:"arbeit",icon:"work",label:"Arbeit",color:"#FFD6A0",colorDark:"#9A5F0E",colorLight:"#FFF4E4",steps:["Aufgabe in einem Satz definieren","Was brauchst du dafür? (Infos, Tools, Zugang)","Ersten Entwurf / ersten Schritt machen","Überprüfen und anpassen","Abgeben oder kommunizieren"]},
+  {id:"sport",icon:"directions_run",label:"Sport & Bewegung",color:"#B8E8D0",colorDark:"#2F7D57",colorLight:"#EBF9F2",steps:["Sportkleidung rauslegen","Tasche packen / Route planen","Schuhe anziehen und losgehen","Training durchziehen (auch nur 10 Min zählt!)","Belohnung: Dusche + etwas Schönes"]},
+  {id:"gesundheit",icon:"medical_services",label:"Gesundheit",color:"#C8A8E9",colorDark:"#7A52B3",colorLight:"#F0E7F9",steps:["Nummer oder Website raussuchen","Termin machen (anrufen / online buchen)","In Kalender eintragen + Erinnerung setzen","Unterlagen vorbereiten (Versichertenkarte etc.)","Hingehen"]},
+  {id:"finanzen",icon:"savings",label:"Finanzen",color:"#E8C8A8",colorDark:"#85592E",colorLight:"#F9F0E7",steps:["Überblick verschaffen (was genau ist zu tun?)","Unterlagen/Zugänge sammeln","Einen konkreten Betrag/Schritt berechnen","Aktion durchführen (überweisen, kündigen, beantragen)","Abhaken und Beleg speichern"]},
+  {id:"kreatives",icon:"palette",label:"Kreatives",color:"#FFB5A7",colorDark:"#A6472F",colorLight:"#FFEAE6",steps:["Inspiration sammeln (1–2 Referenzen reichen)","Material / Tools bereitlegen","Einfach anfangen — perfekt muss es nicht sein","15 Min dranbleiben, dann Pause erlaubt","Ergebnis würdigen — egal wie es aussieht"]},
+  {id:"haushalt",icon:"cleaning_services",label:"Haushalt",color:"#D8B8D8",colorDark:"#85508A",colorLight:"#F4EBF4",steps:["Einen einzigen Bereich / eine Aufgabe wählen","Timer auf 10 Minuten stellen","Loslegen — nur das Nötigste","Timer klingelt? Entscheide ob du weitermachst oder aufhörst","Aufräumen / Müll rausbringen"]},
+];
+// Sortierung: früheste Frist zuerst, ohne Frist ganz unten, sonst nach Erstellung
+const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12-31";return x<y?-1:x>y?1:a.created<b.created?-1:1;};
 
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
-const ICON_NAMES=["ac_unit","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","key","label","lightbulb","local_fire_department","location_on","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","record_voice_over","repeat","restaurant","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism"];
+const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","record_voice_over","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
 const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
 // Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
 const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
@@ -181,8 +198,16 @@ export default function DopaminMenu(){
   const[notifications,setNotifications]=useState([]);
   const timerRef=useRef(null);
 
+  // Breaker: Meilensteine + Zustand der Breaker-Ansicht
+  const[tasks,setTasks]=useState(st?.tasks||[]);
+  const[bkName,setBkName]=useState("");const[bkDate,setBkDate]=useState("");
+  const[bkDel,setBkDel]=useState(null);   // id des Meilensteins, bei dem gerade "Wirklich löschen?" gefragt wird
+  const[bkOpen,setBkOpen]=useState(null); // id des geöffneten Meilensteins (Fragebogen / Schritte)
+  const bkInput=useRef(null);
+  const[todayYmd]=useState(()=>ymd(new Date()));
+
   // persist
-  useEffect(()=>{sv({items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile});},[items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile]);
+  useEffect(()=>{sv({items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile,tasks});},[items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile,tasks]);
 
   const finishOnboarding = () => {
     localStorage.setItem("onboarding_complete", "true");
@@ -256,7 +281,16 @@ export default function DopaminMenu(){
   const rmH=hid=>{setHabits(p=>p.filter(h=>h.id!==hid));};
   const goToHelp=hid=>{setTab("hilfe");setOpenProb(hid);setOpenCat(null);setShowNotifs(false);};
   // Tab wechseln und offene Detailansichten schließen (Footer-Navigation)
-  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);};
+  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setBkOpen(null);setBkDel(null);};
+
+  // Breaker: Meilenstein schnell eintippen ("Rauskippen"). Feld wird sofort geleert, Fokus bleibt für den nächsten Eintrag.
+  const addTask=e=>{e.preventDefault();const n=bkName.trim();if(!n)return;
+    setTasks(p=>[...p,{id:"t_"+Date.now(),name:n,deadline:bkDate||null,deadlineType:null,category:null,why:"",reward:"",steps:[],created:new Date().toISOString(),lastProgress:null,completed:null}]);
+    setBkName("");setBkDate("");bkInput.current?.focus();};
+  const rmTask=id=>{setTasks(p=>p.filter(t=>t.id!==id));setBkDel(null);};
+  const unplanned=tasks.filter(t=>!t.steps.length).sort(byDeadline);
+  const planned=tasks.filter(t=>t.steps.length&&!t.completed).sort(byDeadline);
+  const doneTasks=tasks.filter(t=>t.completed).sort((a,b)=>a.completed<b.completed?1:-1).slice(0,5);
 
   const cfgCats=catOrder.filter(cid=>habitsFor(cid).length>0);
   const avgBat=cfgCats.length?Math.round(cfgCats.reduce((s,cid)=>s+calcBat(habitsFor(cid)),0)/cfgCats.length):null;
@@ -499,8 +533,75 @@ export default function DopaminMenu(){
         </section>
       </div>}
 
-      {/* ═══ BREAKER (Platzhalter, wird ab Task 6 gebaut) ═══ */}
-      {tab==="breaker"&&!timerOn&&<div style={S.soon}><Caterpillar size={56} animate/><p>Der Breaker kommt bald</p></div>}
+      {/* ═══ BREAKER ═══ */}
+      {tab==="breaker"&&!timerOn&&<div style={S.home}>
+        {bkOpen?(
+          /* Fragebogen / Schritt-Ansicht (Platzhalter, wird in Task 7+8 gebaut) */
+          <div><button style={S.bk} onClick={()=>setBkOpen(null)}>← Zurück</button><div style={S.soon}><Caterpillar size={56} animate/><p>Der Fragebogen kommt im nächsten Schritt.</p></div></div>
+        ):(<>
+          {/* Stufe 1: Rauskippen – nur Name und optionales Datum, Enter speichert sofort */}
+          <form onSubmit={addTask} style={S.bkForm}>
+            <label htmlFor="bk-name" style={{...S.secT,marginBottom:0}}>Was steht an?</label>
+            <input id="bk-name" ref={bkInput} style={S.bkInp} value={bkName} onChange={e=>setBkName(e.target.value)} placeholder="z.B. Steuererklärung abgeben" autoComplete="off" enterKeyHint="done"/>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <label htmlFor="bk-date" style={{fontSize:12,fontWeight:600,color:"#5B4A6A"}}>Bis wann? <span style={{fontWeight:500,color:"#6B5F7F"}}>(optional)</span></label>
+              <input id="bk-date" type="date" min={todayYmd} style={S.bkDate} value={bkDate} onChange={e=>setBkDate(e.target.value)}/>
+              <button type="submit" style={{...S.bkAdd,opacity:bkName.trim()?1:.5}} disabled={!bkName.trim()}><Icon name="add" size={18}/>Rauskippen</button>
+            </div>
+          </form>
+
+          {/* Leerer Zustand */}
+          {tasks.length===0&&<div style={S.soon}><Caterpillar size={56} animate/><p>Was schwirrt dir im Kopf rum? Kipp's hier raus.</p></div>}
+
+          {/* Stufe 2: Noch nicht zerlegt */}
+          {unplanned.length>0&&<section aria-label="Noch nicht zerlegt">
+            <h3 style={{...S.secT,display:"flex",alignItems:"center",gap:6}}><Icon name="extension" color="#D9709A" size={18}/>Noch nicht zerlegt</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>{unplanned.map((t,i)=>(
+              <div key={t.id} style={{...S.homeCard,cursor:"default",flexWrap:"wrap",animation:`fadeIn .3s ease-out ${i*.04}s both`}}>
+                <span style={{flex:1,minWidth:0}}>
+                  <span style={{display:"block",overflowWrap:"anywhere"}}>{t.name}</span>
+                  <span style={{fontSize:10.5,fontWeight:500,color:"#6B5F7F"}}>{t.deadline?`bis ${fmtDay(t.deadline)}`:"ohne Datum"}</span>
+                </span>
+                {bkDel===t.id?(
+                  <span style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:12,color:"#5B4A6A"}}>Wirklich löschen?</span>
+                    <button style={{...S.bkBtn,background:"#FDE8E6",color:"#9E2F2F"}} onClick={()=>rmTask(t.id)}>Löschen</button>
+                    <button style={{...S.bkBtn,background:"#F0EAF5",color:"#5B4A6A"}} onClick={()=>setBkDel(null)}>Abbrechen</button>
+                  </span>
+                ):(<>
+                  <button style={S.bkBtn} onClick={()=>setBkOpen(t.id)}>Zerlegen →</button>
+                  <button style={S.bkX} aria-label={`${t.name} löschen`} onClick={()=>setBkDel(t.id)}><Icon name="close" color="#6B5F7F" size={18}/></button>
+                </>)}
+              </div>
+            ))}</div>
+          </section>}
+
+          {/* Geplante Meilensteine mit Fortschritt */}
+          {planned.length>0&&<section aria-label="In Arbeit">
+            <h3 style={S.secT}>In Arbeit</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>{planned.map(t=>{const c=BREAKER_CATS.find(x=>x.id===t.category)||BREAKER_CATS[0];const d=t.steps.filter(s=>s.done).length;return(
+              <button key={t.id} style={{...S.homeCard,flexDirection:"column",alignItems:"stretch",gap:6}} onClick={()=>setBkOpen(t.id)}>
+                <span style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{flex:1,textAlign:"left",overflowWrap:"anywhere"}}>{t.name}</span>
+                  <span style={{...S.bkBadge,background:c.colorLight,color:c.colorDark}}><Icon name={c.icon} color={c.colorDark} size={13}/>{c.label}</span>
+                </span>
+                <span style={{display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:500,color:"#6B5F7F"}}>
+                  <span style={{...S.miniBar,flex:1,width:"auto"}}><span style={{display:"block",height:"100%",width:`${d/t.steps.length*100}%`,background:c.color,borderRadius:4}}/></span>
+                  <span>{d}/{t.steps.length} Schritte{t.deadline?` · bis ${fmtDay(t.deadline)}`:""}</span>
+                </span>
+              </button>
+            );})}</div>
+          </section>}
+
+          {/* Erledigte Meilensteine (letzte 5), eingeklappt */}
+          {doneTasks.length>0&&<details style={S.bkDone}>
+            <summary style={{cursor:"pointer",fontWeight:600,fontSize:13,color:"#5B4A6A"}}>Erledigt ({doneTasks.length})</summary>
+            <ul style={{listStyle:"none",marginTop:8,display:"flex",flexDirection:"column",gap:4}}>{doneTasks.map(t=>(
+              <li key={t.id} style={{display:"flex",alignItems:"center",gap:6,fontSize:12.5,color:"#5B4A6A"}}><Icon name="check_circle" color="#5EC269" size={16}/>{t.name}</li>
+            ))}</ul>
+          </details>}
+        </>)}
+      </div>}
 
       {/* ═══ BATTERIE ═══ */}
       {tab==="batterie"&&!timerOn&&<div style={{padding:"4px 16px"}}>
@@ -564,6 +665,15 @@ const S={
   homeOk:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#fff",borderRadius:16,padding:12,fontSize:13,fontWeight:600,color:"#2E7D3A",boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
   homeDone:{border:"none",borderRadius:12,padding:"6px 12px",background:"#DFF5EA",color:"#2E7D3A",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",flexShrink:0},
   clamp2:{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",marginTop:2,fontSize:11.5,fontWeight:500,color:"#6B5F7F",lineHeight:1.35},
+  // Breaker
+  bkForm:{background:"#fff",borderRadius:18,padding:14,display:"flex",flexDirection:"column",gap:8,boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
+  bkInp:{border:"2px solid #F4A0B5",borderRadius:12,padding:"10px 12px",fontSize:16,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",width:"100%"},
+  bkDate:{border:"2px solid #E8E0D8",borderRadius:10,padding:"6px 8px",fontSize:14,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",flex:1,minWidth:130},
+  bkAdd:{display:"flex",alignItems:"center",gap:4,border:"none",borderRadius:12,padding:"8px 14px",background:"#B8476C",color:"#fff",fontSize:13,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer"},
+  bkBtn:{border:"none",borderRadius:10,padding:"6px 10px",background:"#FDE2EA",color:"#A83D61",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",flexShrink:0},
+  bkX:{display:"flex",alignItems:"center",justifyContent:"center",width:32,height:32,border:"none",background:"none",borderRadius:8,cursor:"pointer",flexShrink:0},
+  bkBadge:{display:"inline-flex",alignItems:"center",gap:3,borderRadius:8,padding:"2px 8px",fontSize:10.5,fontWeight:600,flexShrink:0},
+  bkDone:{background:"#fff",borderRadius:16,padding:"10px 12px",boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
   miniBar:{display:"block",width:70,height:8,borderRadius:4,background:"#F0EAF5",overflow:"hidden",flexShrink:0},
   soon:{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"40px 16px",fontSize:14,fontWeight:600,color:"#9B8AAE",textAlign:"center"},
   rndBtn:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,margin:"8px auto 4px",padding:"9px 22px",borderRadius:50,border:"2.5px solid #E8D0F0",background:"linear-gradient(135deg,#F5E6FF,#FFE0DA 50%,#DFF5EA)",fontSize:13.5,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer",boxShadow:"0 3px 16px rgba(200,168,233,.2)"},

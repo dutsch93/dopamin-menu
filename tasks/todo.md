@@ -166,12 +166,12 @@
 **Beschreibung:** `tasks`-Zustand mit Speicherung. Breaker-Tab mit Schnelleingabe (Text und optionales Datum, Enter speichert, Fokus bleibt), Bereich „🧩 Noch nicht zerlegt“, geplante Meilensteine, eingeklappte erledigte und ein Empty State mit Raupe.
 
 **Akzeptanzkriterien:**
-- [ ] 5 Meilensteine lassen sich in unter 30 Sekunden eintippen (Enter, tippen, Enter …)
-- [ ] Sortierung nach Frist, Einträge ohne Datum unten
-- [ ] Alte Speicherstände ohne `tasks` laden fehlerfrei
+- [x] 5 Meilensteine lassen sich in unter 30 Sekunden eintippen (Enter, tippen, Enter …)
+- [x] Sortierung nach Frist, Einträge ohne Datum unten
+- [x] Alte Speicherstände ohne `tasks` laden fehlerfrei
 
 **Prüfung:**
-- [ ] Browser inkl. Neuladen; ein alter localStorage-Stand (ohne `tasks`) wird korrekt geladen
+- [x] Browser inkl. Neuladen; ein alter localStorage-Stand (ohne `tasks`) wird korrekt geladen
 
 **Abhängigkeiten:** Task 2, Task 5
 **Dateien:** `src/App.jsx`

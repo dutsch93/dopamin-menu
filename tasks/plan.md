@@ -52,7 +52,7 @@ Vier Dinge in dieser Reihenfolge:
 
 ### Phase 2: Breaker-Kern
 - [x] Task 5: Terminplanung als Funktion und Prüfskript
-- [ ] Task 6: Rauskippen: Schnelleingabe und Meilenstein-Liste
+- [x] Task 6: Rauskippen: Schnelleingabe und Meilenstein-Liste
 - [ ] Task 7: Fragebogen Pflichtteil: Kategorie und Schritte mit Terminen
 - [ ] Task 8: Schritt-Ansicht: abhaken, bearbeiten, verschieben, Abschluss-Feier
 
