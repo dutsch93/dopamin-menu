@@ -60,7 +60,7 @@ Vier Dinge in dieser Reihenfolge:
 - [x] Rauskippen → Zerlegen → Abhaken → Feier funktioniert durchgehend und überlebt ein Neuladen der Seite
 
 ### Phase 3: Breaker-Feinschliff
-- [ ] Task 9: Optionale Fragen: Warum, erster Schritt, Frist-Typ, Belohnung
+- [x] Task 9: Optionale Fragen: Warum, erster Schritt, Frist-Typ, Belohnung
 - [ ] Task 10: Fällige Schritte auf Home („Heute dran“)
 - [ ] Task 11: Sanfte Hinweise: Frist vorbei, „Steckst du fest?“, „X warten aufs Zerlegen“
 

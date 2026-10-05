@@ -228,12 +228,12 @@
 **Beschreibung:** Hinweis „Noch ein paar Fragen? (optional)“, danach einzeln überspringbare Bildschirme: Warum, kleinster erster Schritt (wird Schritt 1), echte oder selbst gesetzte Frist (nur mit Datum), Belohnung (Freitext und Chips aus Sides und Appetizers, keine Entrées). „Warum“ und Belohnung werden in der Schritt-Ansicht angezeigt.
 
 **Akzeptanzkriterien:**
-- [ ] Alle 4 Fragen einzeln überspringbar, „Alle überspringen“ möglich
-- [ ] Die Belohnungs-Chips enthalten auch selbst angelegte Sides und Appetizers
-- [ ] Die Abschluss-Feier nennt die Belohnung („Du hast dir … verdient! 🎁“)
+- [x] Alle 4 Fragen einzeln überspringbar, „Alle überspringen“ möglich
+- [x] Die Belohnungs-Chips enthalten auch selbst angelegte Sides und Appetizers
+- [x] Die Abschluss-Feier nennt die Belohnung („Du hast dir … verdient! 🎁“)
 
 **Prüfung:**
-- [ ] Browser: einmal alles ausfüllen, einmal alles überspringen
+- [x] Browser: einmal alles ausfüllen, einmal alles überspringen
 
 **Abhängigkeiten:** Task 8
 **Dateien:** `src/App.jsx`
