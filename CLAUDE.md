@@ -7,7 +7,7 @@
 
 ## Projekt-Übersicht
 
-**Name:** Dopamin-Menü — Jellycat Edition
+**Name:** Dopamin-Menü
 **Typ:** React Web-App (Vite + React, Single-File `App.jsx`)
 **Hosting:** Vercel (Auto-Deploy via GitHub Push)
 **Zielgruppe:** Menschen mit ADHS
@@ -35,7 +35,7 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 - Jedes Problem hat 4 wissenschaftlich fundierte Tipps
 - 🔬 Button zeigt wissenschaftliche Quellen
 - Eigene Tipps pro Kategorie hinzufügbar + löschbar
-- Emoji-Picker für eigene Tipps
+- Icon-Picker für eigene Tipps (ältere eigene Tipps mit Emoji werden weiter angezeigt)
 
 ### 🔋 Batterie-Tab
 - 10 Kategorien (Natur, Bewegung, Ruhe, Kreativität, Soziales, Haushalt, Lernen, Schlaf, Ernährung, Selbstpflege)
@@ -57,6 +57,8 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 ---
 
 ## ÄNDERUNGEN — Was jetzt gebaut werden muss
+
+> **Wichtig: Keine Emojis in der Oberfläche.** Die App nutzt seit Oktober 2026 bunte Google Material Symbols statt Emojis (siehe Design-System → Icons). Emojis in den Texten dieses Dokuments sind nur Platzhalter. In Buttons und Überschriften wird daraus ein passendes Icon. Steht ein Emoji am Ende eines Satzes (z.B. „Weiter so! 💪“), wird es weggelassen.
 
 ### 1. 📱 Footer-Navigation (Glasoptik)
 
@@ -106,14 +108,14 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 
 #### C) Batterie-Übersicht (Kompakt)
 - Nur die 3 niedrigsten Batterien als kleine horizontale Karten:
-  - Emoji + Name + Mini-Batteriebalken (horizontal, farbig gefüllt) + Prozent
+  - Kategorie-Icon + Name + Mini-Batteriebalken (horizontal, farbig gefüllt) + Prozent
   - Tap öffnet die Batterie-Detailseite (wechselt zu Batterie-Tab + `setOpenCat(catId)`)
 - Wenn keine Batterien konfiguriert: Karte mit „🔋 Richte deine erste Batterie ein →" die zum Batterie-Tab navigiert
 - Wenn alle Batterien >80%: „Alle Batterien geladen! 💚" Nachricht statt Karten
 
 #### D) Heute dran (Habits + Breaker-Schritte)
 - Die 3 dringendsten/überfälligsten Habits über alle Kategorien hinweg
-- Pro Habit: Farbiger Dot (rot/gelb/grün) + Habitname + Kategorie-Emoji + „Erledigt ✓" Button
+- Pro Habit: Farbiger Dot (rot/gelb/grün) + Habitname + Kategorie-Icon + „Erledigt" Button (mit Icon `check`)
 - Tap auf Erledigt = `checkIn(habitId)` + ⭐
 - Zusätzlich: Breaker-Schritte, die heute fällig oder überfällig sind (max. 3, überfälligste zuerst). Pro Schritt: 🧩 + Schritttext + Meilenstein-Name (klein) + „Erledigt ✓" Button (hakt den Schritt ab, +1 ⭐). Tap auf den Text öffnet den Meilenstein im Breaker-Tab.
 - Wenn nichts fällig ist: „Alles erledigt — gut gemacht! 🌿"
@@ -124,7 +126,7 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 
 #### F) Tipp des Tages
 - Ein zufälliger Tipp aus der Soforthilfe, wechselt täglich (basierend auf `new Date().toDateString()` als Seed)
-- Kleine Karte: Tier-Emoji + Tipp-Titel + Kurztext (max 2 Zeilen)
+- Kleine Karte: Tier (`<MiniAnimal type={problemId}/>`) + Tipp-Titel + Kurztext (max 2 Zeilen)
 - Tap navigiert zur vollen Hilfe-Kategorie (`setTab("hilfe"); setOpenProb(helpId)`)
 
 ---
@@ -144,7 +146,7 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 const BREAKER_CATS = [
   {
     id: "alltag",
-    emoji: "🏠",
+    icon: "home",
     label: "Alltag",
     color: "#F4A0B5",
     steps: [
@@ -157,7 +159,7 @@ const BREAKER_CATS = [
   },
   {
     id: "soziales",
-    emoji: "👥",
+    icon: "group",
     label: "Soziales",
     color: "#A8D8EA",
     steps: [
@@ -170,7 +172,7 @@ const BREAKER_CATS = [
   },
   {
     id: "arbeit",
-    emoji: "💼",
+    icon: "work",
     label: "Arbeit",
     color: "#FFD6A0",
     steps: [
@@ -183,7 +185,7 @@ const BREAKER_CATS = [
   },
   {
     id: "sport",
-    emoji: "🏃",
+    icon: "directions_run",
     label: "Sport & Bewegung",
     color: "#B8E8D0",
     steps: [
@@ -196,7 +198,7 @@ const BREAKER_CATS = [
   },
   {
     id: "gesundheit",
-    emoji: "🏥",
+    icon: "medical_services",
     label: "Gesundheit",
     color: "#C8A8E9",
     steps: [
@@ -209,7 +211,7 @@ const BREAKER_CATS = [
   },
   {
     id: "finanzen",
-    emoji: "💰",
+    icon: "savings",
     label: "Finanzen",
     color: "#E8C8A8",
     steps: [
@@ -222,7 +224,7 @@ const BREAKER_CATS = [
   },
   {
     id: "kreatives",
-    emoji: "🎨",
+    icon: "palette",
     label: "Kreatives",
     color: "#FFB5A7",
     steps: [
@@ -235,7 +237,7 @@ const BREAKER_CATS = [
   },
   {
     id: "haushalt",
-    emoji: "🧹",
+    icon: "cleaning_services",
     label: "Haushalt",
     color: "#D8B8D8",
     steps: [
@@ -261,7 +263,7 @@ const BREAKER_CATS = [
 
 #### Ansicht 2: Fragebogen (nach Tap auf „Zerlegen →")
 Eine Frage pro Bildschirm, Fortschrittspunkte oben, „← Zurück" möglich. Name und Datum kommen aus der Schnelleingabe (hier noch änderbar).
-1. **Kategorie (Pflicht):** Kategorie-Chips (Emoji + Label) aus `BREAKER_CATS`.
+1. **Kategorie (Pflicht):** Kategorie-Chips (Icon + Label) aus `BREAKER_CATS`.
 2. **Schritte (Pflicht):** Vorlage der Kategorie ist vorausgefüllt. Text editierbar, Schritte löschbar (×), „+ Eigenen Schritt hinzufügen". Daneben die automatisch berechneten Termine (siehe Terminplanung), einzeln änderbar.
 3. Danach Hinweis „Noch ein paar Fragen? (optional)" mit „Überspringen" auf jedem Bildschirm:
    - **Warum ist dir das wichtig?** (ein Satz, Freitext)
@@ -349,6 +351,14 @@ font-family: 'Fredoka', sans-serif;
 /* Import via <style> Tag: */
 /* @import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap'); */
 ```
+
+### Icons (statt Emojis)
+- **Google Material Symbols Rounded, gefüllt**, geladen per `@import` im `<style>`-Tag (wie Fredoka, keine npm-Dependency)
+- In `App.jsx`: `<Icon name="star" color="#E8A820" size={18}/>`. Für gespeicherte Nutzerdaten, die noch ein Emoji enthalten können (eigene Tipps), gibt es `<Ico v={...}/>`.
+- **Jedes neue Icon muss in `ICON_NAMES` eingetragen werden.** Google liefert nur gelistete Icons aus (Schrift ca. 13 KB). Fehlt ein Name, erscheint stattdessen das Wort, z.B. „star“. Namen nachschlagen: https://fonts.google.com/icons
+- **Farben:** immer bunt aus der Palette, meist der `colorDark`-Ton der jeweiligen Kategorie (auf Creme gut lesbar). Footer: Home `#9B6FCF`, Menü `#E8876F`, Breaker `#D9709A`, Hilfe `#5BA3C0`, Batterie `#4FA97F`. Sterne `#E8A820`, Streak `#F07A4A`, Erledigt `#5EC269`.
+- **Barrierefreiheit:** Icons sind dekorativ (`aria-hidden`). Daneben steht immer sichtbarer Text, oder der Button hat ein `aria-label`.
+- **Ausnahmen:** Die Tiere bleiben inline-SVG (Maskottchen, `MiniAnimal`). Pfeile in Texten (← →) sind Typografie und bleiben.
 
 ### Komponenten-Stil
 - Border-Radius: 12–20px (Karten: 16–18px, Buttons: 12–14px, Footer: 0)
@@ -442,8 +452,8 @@ dopamin-menu/
 
 - **Keine externen Dependencies** außer React (kommt mit Vite)
 - **Keine Router-Library** — Tab-Wechsel über `useState`
-- **Font:** Fredoka wird per Google Fonts CSS-Import im `<style>`-Tag geladen
-- **Emojis:** Direkt als UTF-8 Zeichen im Source Code, keine Emoji-Library
+- **Font:** Fredoka und die Icon-Schrift (Material Symbols) werden per Google Fonts CSS-Import im `<style>`-Tag geladen
+- **Icons:** Google Material Symbols über `<Icon>` (siehe Design-System → Icons). Keine Emojis in fest eingebauten Texten oder Daten.
 - **SVG:** Alle Tierchen und Batterie-Grafiken sind inline SVG React-Komponenten
 - **Notifications:** Browser Notification API (`Notification.requestPermission()` + `new Notification()`)
 - **Drag & Drop:** HTML5 native (`onDragStart`, `onDragOver`, `onDrop`)

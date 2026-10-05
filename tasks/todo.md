@@ -85,12 +85,12 @@
 - **Emojis mitten im Satz**, z.B. „Du machst das toll! 💖“ oder „Streck dich wie ein Seestern 🌟“: Icon am Satzende oder ganz weglassen?
 
 **Akzeptanzkriterien:**
-- [ ] Keine Emojis mehr in fest eingebauten Texten und Daten (Prüfskript zählt 0, Ausnahmen dokumentiert)
-- [ ] Jedes Icon hat eine Farbe aus der App-Palette und daneben einen sichtbaren Text oder ein `aria-label`
-- [ ] Gespeicherte Nutzerdaten mit Emojis werden weiterhin korrekt angezeigt
+- [x] Keine Emojis mehr in fest eingebauten Texten und Daten (Prüfskript zählt 0, Ausnahmen dokumentiert)
+- [x] Jedes Icon hat eine Farbe aus der App-Palette und daneben einen sichtbaren Text oder ein `aria-label`
+- [x] Gespeicherte Nutzerdaten mit Emojis werden weiterhin korrekt angezeigt
 
 **Prüfung:**
-- [ ] Emoji-Zählskript; Browser: alle Tabs, Onboarding, Modals, Benachrichtigungen
+- [x] Emoji-Zählskript; Browser: alle Tabs, Onboarding, Modals, Benachrichtigungen
 
 **Abhängigkeiten:** Task 2
 **Dateien:** `src/App.jsx`, `CLAUDE.md` (Design-System: Icons statt Emojis; `BREAKER_CATS` mit Icon-Namen)

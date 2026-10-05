@@ -42,7 +42,7 @@ Vier Dinge in dieser Reihenfolge:
 
 ### Phase 1: Navigation und Home
 - [x] Task 2: Footer-Navigation mit 5 Tabs (Home und Breaker vorerst als Platzhalter), Icon-Grundlage, Header ohne „Jellycat Edition“
-- [ ] Task 2b: Emojis überall durch bunte Material Symbols ersetzen (Wunsch vom 05.10.)
+- [x] Task 2b: Emojis überall durch bunte Material Symbols ersetzen (Wunsch vom 05.10.)
 - [ ] Task 3: Home Teil 1: Motivation, Batterie-Übersicht, „Ich brauch was!“
 - [ ] Task 4: Home Teil 2: „Heute dran“ (Habits), Tipp des Tages
 
