@@ -364,6 +364,17 @@ export default function DopaminMenu(){
       <Icon name="expand_more" color="#6B5F7F" size={22} style={{transition:"transform .2s",transform:bkSec[key]?"rotate(180deg)":"none"}}/>
     </button>);
 
+  // Home "Erledigen": Button wird kurz grün ("Erledigt" mit Haken-Icon), die Zeile blendet aus, DANN wird abgehakt und der nächste Eintrag rückt nach.
+  // Während der Animation werden weitere Taps ignoriert (kein doppeltes Abhaken).
+  const[homeFlash,setHomeFlash]=useState(null);
+  const homeDo=(key,fn)=>{if(homeFlash)return;setHomeFlash(key);setTimeout(()=>{fn();setHomeFlash(null);},900);};
+  const homeDoneBtn=(key,label,fn)=>{const on=homeFlash===key;return(
+    <button style={{...S.homeDone,...(on?S.homeDoneOn:{})}} aria-label={on?`${label}: erledigt`:`${label} erledigen`} onClick={()=>homeDo(key,fn)}>
+      {on?<span style={{display:"inline-flex",alignItems:"center",gap:3,animation:"checkPop .4s ease-out"}}>Erledigt <Icon name="check" size={14}/></span>:"Erledigen"}
+    </button>);};
+  // Home: Breaker-Schritte, die heute fällig oder überfällig sind (überfälligste zuerst, max. 3)
+  const dueSteps=tasks.filter(t=>!t.completed).flatMap(t=>t.steps.filter(s=>!s.done&&s.due&&s.due<=todayYmd).map(s=>({t,s}))).sort((a,b)=>a.s.due<b.s.due?-1:a.s.due>b.s.due?1:0).slice(0,3);
+
   const unplanned=tasks.filter(t=>!t.steps.length).sort(byDeadline);
   const planned=tasks.filter(t=>t.steps.length&&!t.completed).sort(byDeadline);
   const doneTasks=tasks.filter(t=>t.completed).sort((a,b)=>a.completed<b.completed?1:-1).slice(0,5);
@@ -392,7 +403,7 @@ export default function DopaminMenu(){
 
   return(
     <div style={S.wrap}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');@import url('${ICON_URL}');*{box-sizing:border-box;margin:0;padding:0}@keyframes wiggle{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes nod{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes bounce{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(.95)}}@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-120px) rotate(720deg);opacity:0}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}@keyframes slideIn{0%{transform:translateX(50px);opacity:0}100%{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}@keyframes checkPop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}@media(min-width:768px){.tablet-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}.bat-grid-t{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');@import url('${ICON_URL}');*{box-sizing:border-box;margin:0;padding:0}@keyframes wiggle{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes nod{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes bounce{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(.95)}}@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-120px) rotate(720deg);opacity:0}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}@keyframes slideIn{0%{transform:translateX(50px);opacity:0}100%{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}@keyframes checkPop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}@keyframes rowOut{0%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(24px)}}@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}@media(min-width:768px){.tablet-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}.bat-grid-t{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}}`}</style>
 
       {/* ONBOARDING */}
       {!onboardingComplete && (
@@ -573,21 +584,33 @@ export default function DopaminMenu(){
           )}
         </section>
 
-        {/* D) Heute dran: fällige und überfällige Habits */}
-        <section aria-label="Heute dran">
-          <h3 style={S.secT}>Heute dran</h3>
-          {dueHabits.length===0?(
+        {/* D) Dein Fokus: fällige und überfällige Habits + Breaker-Schritte */}
+        <section aria-label="Dein Fokus">
+          <h3 style={S.secT}>Dein Fokus</h3>
+          {dueHabits.length===0&&dueSteps.length===0?(
             <p style={S.homeOk}><Icon name="eco" color="#5EC269" size={20}/>Alles erledigt – gut gemacht!</p>
           ):(
             <div style={{display:"flex",flexDirection:"column",gap:6}}>{dueHabits.map(({h,left},i)=>{const bc=BAT_CATS.find(c=>c.id===h.category);const ov=left<0;return(
-              <div key={h.id} style={{...S.homeCard,cursor:"default",animation:`fadeIn .3s ease-out ${i*.05}s both`}}>
+              <div key={h.id} style={{...S.homeCard,cursor:"default",animation:homeFlash==="h"+h.id?S.rowOut:`fadeIn .3s ease-out ${i*.05}s both`}}>
                 <span aria-hidden="true" style={{width:10,height:10,borderRadius:5,flexShrink:0,background:ov?"#E86A5A":"#F0C040"}}/>
                 <span style={{flex:1,minWidth:0}}>
                   <span style={{display:"block"}}>{h.name}</span>
                   <span style={{fontSize:10.5,fontWeight:500,color:ov?"#B5402F":"#8A6A00"}}>{ov?"überfällig":"heute fällig"}</span>
                 </span>
                 {bc&&<Icon name={bc.icon} color={bc.colorDark} size={18}/>}
-                <button style={{...S.homeDone,animation:checkAnim===h.id?"checkPop .4s ease-out":"none"}} onClick={()=>checkIn(h.id)}>Erledigt <Icon name="check" size={14} style={{verticalAlign:"-3px"}}/></button>
+                {homeDoneBtn("h"+h.id,h.name,()=>checkIn(h.id))}
+              </div>
+            );})}
+            {/* Fällige Breaker-Schritte: Text antippen öffnet den Meilenstein, "Erledigt" hakt ab (wie im Breaker) */}
+            {dueSteps.map(({t,s},i)=>{const ov=s.due<todayYmd;return(
+              <div key={s.id+t.id} style={{...S.homeCard,cursor:"default",animation:homeFlash==="s"+t.id+s.id?S.rowOut:`fadeIn .3s ease-out ${(dueHabits.length+i)*.05}s both`}}>
+                <span aria-hidden="true" style={{width:10,height:10,borderRadius:5,flexShrink:0,background:ov?"#E86A5A":"#F0C040"}}/>
+                <button style={S.homeStepLink} onClick={()=>{goTab("breaker");setBkOpen(t.id);}}>
+                  <span style={{display:"block",overflowWrap:"anywhere"}}>{s.text}</span>
+                  <span style={{fontSize:10.5,fontWeight:500,color:ov?"#B5402F":"#8A6A00"}}>{ov?"überfällig":"heute fällig"} · <span style={{color:"#6B5F7F"}}>{t.name}</span></span>
+                </button>
+                <Icon name="extension" color="#D9709A" size={18}/>
+                {homeDoneBtn("s"+t.id+s.id,s.text,()=>toggleStep(t.id,s.id))}
               </div>
             );})}</div>
           )}
@@ -874,7 +897,12 @@ const S={
   homeMsg:{textAlign:"center",fontSize:14,fontWeight:600,margin:"6px 0 0"},
   homeCard:{display:"flex",alignItems:"center",gap:10,width:"100%",background:"#fff",border:"none",borderRadius:16,padding:"10px 12px",boxShadow:"0 2px 10px rgba(180,160,200,.1)",fontFamily:"'Fredoka',sans-serif",fontSize:13,fontWeight:600,color:"#5B4A6A",cursor:"pointer"},
   homeOk:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"#fff",borderRadius:16,padding:12,fontSize:13,fontWeight:600,color:"#2E7D3A",boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
-  homeDone:{border:"none",borderRadius:12,padding:"6px 12px",background:"#DFF5EA",color:"#2E7D3A",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",flexShrink:0},
+  homeStepLink:{flex:1,minWidth:0,textAlign:"left",background:"none",border:"none",padding:0,fontFamily:"'Fredoka',sans-serif",fontSize:13,fontWeight:600,color:"#5B4A6A",cursor:"pointer"},
+  // "Erledigen"-Button: neutral (weiß, lila Rand) -> nach Tippen kurz grün
+  homeDone:{border:"2px solid #C8A8E9",borderRadius:12,padding:"5px 11px",minWidth:92,background:"#fff",color:"#7A52B3",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",flexShrink:0,transition:"background .2s, color .2s, border-color .2s"},
+  homeDoneOn:{background:"#2E7D3A",borderColor:"#2E7D3A",color:"#fff"},
+  // Zeile blendet nach "Erledigt" aus (startet, nachdem der Button kurz grün war)
+  rowOut:"rowOut .3s ease-in .55s forwards",
   clamp2:{display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",marginTop:2,fontSize:11.5,fontWeight:500,color:"#6B5F7F",lineHeight:1.35},
   // Breaker
   bkForm:{background:"#fff",borderRadius:18,padding:14,display:"flex",flexDirection:"column",gap:8,boxShadow:"0 2px 10px rgba(180,160,200,.1)"},

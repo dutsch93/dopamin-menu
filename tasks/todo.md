@@ -246,11 +246,11 @@
 **Beschreibung:** „Heute dran“ (Task 4) um bis zu 3 fällige bzw. überfällige Breaker-Schritte erweitern. „Erledigt ✓“ hakt den Schritt ab, ein Tap auf den Text öffnet den Meilenstein.
 
 **Akzeptanzkriterien:**
-- [ ] Nur Schritte mit Termin heute oder früher, die überfälligsten zuerst
-- [ ] Abhaken auf Home verhält sich genauso wie im Breaker (⭐, Feier beim letzten Schritt)
+- [x] Nur Schritte mit Termin heute oder früher, die überfälligsten zuerst
+- [x] Abhaken auf Home verhält sich genauso wie im Breaker (⭐, Feier beim letzten Schritt)
 
 **Prüfung:**
-- [ ] Browser mit einem überfälligen Schritt (Datum per Datumsfeld zurücksetzen)
+- [x] Browser mit einem überfälligen Schritt (Datum per Datumsfeld zurücksetzen)
 
 **Abhängigkeiten:** Task 4, Task 8
 **Dateien:** `src/App.jsx`

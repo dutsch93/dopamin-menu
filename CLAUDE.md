@@ -113,11 +113,12 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 - Wenn keine Batterien konfiguriert: Karte mit „🔋 Richte deine erste Batterie ein →" die zum Batterie-Tab navigiert
 - Wenn alle Batterien >80%: „Alle Batterien geladen! 💚" Nachricht statt Karten
 
-#### D) Heute dran (Habits + Breaker-Schritte)
-- Die 3 dringendsten/überfälligsten Habits über alle Kategorien hinweg
-- Pro Habit: Farbiger Dot (rot/gelb/grün) + Habitname + Kategorie-Icon + „Erledigt" Button (mit Icon `check`)
-- Tap auf Erledigt = `checkIn(habitId)` + ⭐
-- Zusätzlich: Breaker-Schritte, die heute fällig oder überfällig sind (max. 3, überfälligste zuerst). Pro Schritt: 🧩 + Schritttext + Meilenstein-Name (klein) + „Erledigt ✓" Button (hakt den Schritt ab, +1 ⭐). Tap auf den Text öffnet den Meilenstein im Breaker-Tab.
+#### D) Dein Fokus (Habits + Breaker-Schritte)
+- Überschrift „Dein Fokus“ (vorher „Heute dran“, am 05.10. umbenannt)
+- Die 3 dringendsten Habits (überfällig oder in den nächsten 24 Std fällig)
+- Pro Habit: farbiger Punkt (rot = überfällig, gelb = heute fällig) + Text „überfällig“/„heute fällig“ + Habitname + Kategorie-Icon + Button
+- Zusätzlich: Breaker-Schritte, die heute fällig oder überfällig sind (max. 3, überfälligste zuerst). Pro Schritt: Puzzle-Icon + Schritttext + Meilenstein-Name (klein). Tap auf den Text öffnet den Meilenstein im Breaker-Tab.
+- **Button „Erledigen“** (neutral: weiß, lila Rand). Nach Tippen wird er ca. 0,5 s grün mit „Erledigt“ + Haken, dann gleitet die Zeile raus. Erst dann wird abgehakt (`checkIn` bzw. `toggleStep`, +1 ⭐), und der nächste Eintrag rückt nach. Weitere Taps während der Animation werden ignoriert.
 - Wenn nichts fällig ist: „Alles erledigt — gut gemacht! 🌿"
 
 #### E) „Ich brauch was!"-Button
