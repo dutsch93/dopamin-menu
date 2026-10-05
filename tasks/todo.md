@@ -1,282 +1,112 @@
-# Aufgaben: Dopamin-Menü v6
+# Aufgaben v7 – Modul `identity`
 
-*Übersicht und Begründungen: `tasks/plan.md`*
+*Übersicht und Begründungen: `tasks/plan.md` · Spezifikation: `docs/specs/SPEC-identity.md`*
 
-**Standard-Prüfung für jede Aufgabe** (zusätzlich zu den eigenen Kriterien):
-- `npm run build` läuft ohne Fehler
-- `npm run lint` ohne neue Fehler (Ausgangswert seit v1: 6 Fehler, 2 Warnungen in alten Code-Teilen, bewusst nicht angefasst)
-- Klicktest im Browser (`npm run dev`), Handybreite (375 px) und Tablet (768 px)
-- Alle neuen Texte auf Deutsch, Code-Kommentare auf Deutsch
-- Nach Neuladen der Seite sind die Daten noch da (localStorage)
+**Standard-Prüfung für jede Aufgabe:**
+- `npm test` grün
+- `npm run build` ohne Fehler
+- `npm run lint`: nicht mehr Meldungen als der Ausgangswert (6 Fehler, 2 Warnungen in altem Code)
+- Keine Emojis, alle Icons in `ICON_NAMES`
+- `git grep -n "eyJ\|service_role\|SUPABASE_ANON_KEY=" -- ':!.env.example'` findet keinen Schlüssel
+- Texte und Kommentare auf Deutsch
 
 ---
 
-## Phase 0: Fundament
+## Phase A: Fundament
 
-### Task 0: Git lokal einrichten und mit GitHub verbinden
+### Task 0: Supabase-Projekt einrichten (Anh)
 
-**Beschreibung:** Den lokalen Ordner mit `github.com/dutsch93/dopamin-menu` verbinden, ohne lokale Dateien zu überschreiben. Die `.gitignore` aus dem Repo übernehmen. Einen Arbeits-Branch `feature/v6` anlegen.
+**Beschreibung:** Anh legt das Supabase-Projekt an und stellt den Login per Code ein, Schritt für Schritt nach `docs/specs/supabase-einrichtung.md`. Claude darf keine Konten anlegen und keine Zugangsdaten bei fremden Diensten eingeben.
 
 **Akzeptanzkriterien:**
-- [x] `git status` zeigt nur die neuen Dateien (CLAUDE.md, docs/, tasks/) als Änderungen; App.jsx gilt als unverändert
-- [x] `node_modules`, `.DS_Store` und `.claude/settings.local.json` sind ignoriert (`.remember` ignoriert sich selbst)
-- [x] Branch `feature/v6` ist aktiv
+- [ ] Projekt in Region Frankfurt, E-Mail-Login aktiv
+- [ ] E-Mail-Vorlagen auf Deutsch mit `{{ .Token }}`, Code gilt 5 Minuten, 6 Stellen
+- [ ] Projekt-URL und anon key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
 
-**Prüfung:**
-- [x] `git status` und `git log` stimmen mit GitHub überein
-- [x] Vorher Sicherungskopie des Ordners im Scratchpad
-
-**Abhängigkeiten:** keine
-**Dateien:** `.gitignore`
-**Umfang:** XS
+**Prüfung:** Claude prüft nur, ob `.env.local` existiert und die Variablen gesetzt sind, ohne die Werte auszugeben.
+**Abhängigkeiten:** keine · **Umfang:** – (Einstellungen, kein Code)
 
 ---
 
-### Task 1: App.jsx reparieren
+### Task 1: Vitest einrichten und reine Funktionen nach `src/logic.js`
 
-**Beschreibung:** Die Datei aus dem sauberen Stand `3a43042` nehmen und die 12 inhaltlichen Änderungen des Onboarding-Commits sauber wieder einsetzen: Onboarding-Daten, Zustand, Speichern, `finishOnboarding`, Sortierungen, `slideIn`-Animation, Overlay und Styles. Keine eigenen Verbesserungen.
+**Beschreibung:** `vitest` als Dev-Dependency, Skripte `test` und `test:watch`. `ymd`, `parseYmd`, `addDays`, `daysBetween`, `planDue`, `cleanTasks`, `isYmd` und `BREAKER_CATS` ziehen von `App.jsx` nach `src/logic.js` und werden in `App.jsx` importiert. Die bisherigen Prüfskripte (25 Fälle) werden zu Vitest-Tests in `src/logic.test.js`.
 
 **Akzeptanzkriterien:**
-- [x] Build läuft fehlerfrei; Lint identisch mit Stand `3a43042` (keine neuen Meldungen)
-- [x] Inhaltsvergleich ohne Leerraum gegen die kaputte Version: nur 2 Unterschiede, `& atmen 💧` wiederhergestellt und doppelter `rndBtn`-Style entfernt
-- [x] Onboarding erscheint beim ersten Start, alle 3 Schritte funktionieren, danach stimmen Batterie-Reihenfolge und Start-Habits
+- [ ] `npm test` führt mindestens die 25 bisherigen Fälle aus, alle grün
+- [ ] App verhält sich unverändert (Breaker: zerlegen, abhaken; Home: Dein Fokus)
+- [ ] `App.jsx` enthält die verschobenen Funktionen nicht mehr doppelt
 
-**Prüfung:**
-- [x] Vergleichsskript im Scratchpad
-- [x] Browser (Klicktest durch Anh, 05.10.): Onboarding mit leerem localStorage, danach Menü, Hilfe und Batterie durchklicken, Timer einmal starten
-
-**Abhängigkeiten:** Task 0
-**Dateien:** `src/App.jsx`
-**Umfang:** S
+**Prüfung:** `npm test`, `npm run build`, Lint; Klicktest Breaker (Anh)
+**Abhängigkeiten:** keine · **Dateien:** `package.json`, `src/logic.js`, `src/logic.test.js`, `src/App.jsx` · **Umfang:** S
 
 ---
 
-## ✅ Checkpoint 0: Reparatur
-- [x] Build und Lint grün, App läuft wie vor dem 29.08., plus Onboarding
-- [x] Commit auf `feature/v6`
-- [x] **Du entscheidest:** sofort nach `main` (live) → 05.10. live gestellt (`1c7396a`), dopamin-menu.vercel.app liefert den neuen Build aus
+## ✅ Checkpoint A
+- [ ] Tests grün, App unverändert, Commit auf `feature/v7`
 
 ---
 
-## Phase 1: Navigation und Home
+## Phase B: Login
 
-### Task 2: Footer-Navigation
+### Task 2: Supabase anbinden und Konfiguration prüfen
 
-**Beschreibung:** Fester Glas-Footer mit 5 Tabs (🏠 Home, 🍽️ Menü, 🧩 Breaker, 🩹 Hilfe, 🔋 Batterie) nach CLAUDE.md Abschnitt 1. Die alte Tab-Leiste oben entfällt. Standard-Tab ist `home`. Home und Breaker zeigen vorerst einen einfachen Platzhalter. Der Footer bleibt auch im Timer-Modus sichtbar.
+**Beschreibung:** `@supabase/supabase-js` installieren. Client außerhalb der Komponente mit `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY`. Fehlen die Werte, zeigt die App eine klare Entwickler-Meldung. Eine `.env.example` mit Platzhaltern kommt ins Repository.
 
 **Akzeptanzkriterien:**
-- [x] Alle 5 Tabs schalten um, der aktive Tab ist erkennbar (Punkt oder Hintergrund)
-- [x] Kein Inhalt verschwindet hinter dem Footer (Abstand unten ca. 80 px), Safe-Area auf dem iPhone beachtet
-- [x] Buttons haben `aria-label` bzw. sichtbare Labels und `aria-current` beim aktiven Tab
+- [ ] Mit `.env.local`: App startet normal (noch ohne Login-Gate)
+- [ ] Ohne `.env.local`: verständliche Meldung statt leerer Seite
+- [ ] Kein echter Schlüssel im Repository
 
-**Prüfung:**
-- [x] Browser: alle Tabs, Timer läuft und Footer bleibt sichtbar, Onboarding liegt über dem Footer
-
-**Abhängigkeiten:** Task 1
-**Dateien:** `src/App.jsx`
-**Umfang:** S
+**Prüfung:** Build mit und ohne Variablen; `git grep` auf Schlüssel
+**Abhängigkeiten:** Task 0, Task 1 · **Dateien:** `package.json`, `src/App.jsx`, `.env.example` · **Umfang:** XS
 
 ---
 
-### Task 2b: Emojis überall durch Icons ersetzen
+### Task 3: Login-Gate: E-Mail → Code → App
 
-**Beschreibung:** Wunsch vom 05.10.: einheitliches Design mit bunten Google Material Symbols (Rounded, gefüllt) statt Emojis. Die Grundlage aus Task 2 wird genutzt (`ICON_NAMES`, `Icon`-Komponente, Schrift lädt nur gelistete Icons). Ersetzt werden die Emojis in Daten (Kategorien, Tipps, Batterien, Intervalle, Onboarding) und in der Oberfläche (Buttons, Überschriften, Hinweise). Die SVG-Tiere (Maskottchen, MiniAnimal) bleiben. Vor dem Start klären:
-- Was passiert mit **eigenen Inhalten** der Nutzer, etwa dem Emoji-Picker bei eigenen Tipps und den Emojis in selbst angelegten Menü-Einträgen? Vorschlag: Der Picker wird zum Icon-Picker, alte Emoji-Einträge werden weiter angezeigt.
-- **Emojis mitten im Satz**, z.B. „Du machst das toll! 💖“ oder „Streck dich wie ein Seestern 🌟“: Icon am Satzende oder ganz weglassen?
+**Beschreibung:** Sitzung beim Start laden (`getSession`, `onAuthStateChange`), kurzer Lade-Zustand. Ohne Sitzung nur der Login-Bildschirm: E-Mail eingeben → `signInWithOtp` → Code-Feld (Hinweis „gilt 5 Minuten“) → bei 6 Ziffern automatisch `verifyOtp` → App (bzw. Onboarding bei neuen Nutzern). Neue Funktionen in `logic.js` mit Tests: `isValidEmail`, `cleanCode`, `authErrorText`.
 
 **Akzeptanzkriterien:**
-- [x] Keine Emojis mehr in fest eingebauten Texten und Daten (Prüfskript zählt 0, Ausnahmen dokumentiert)
-- [x] Jedes Icon hat eine Farbe aus der App-Palette und daneben einen sichtbaren Text oder ein `aria-label`
-- [x] Gespeicherte Nutzerdaten mit Emojis werden weiterhin korrekt angezeigt
+- [ ] Ohne Sitzung ist nichts von der App sichtbar (kein Footer, kein Onboarding)
+- [ ] Neue E-Mail → nach Code ins Onboarding; bekannte E-Mail → direkt in die App, lokale Daten unverändert
+- [ ] Neuladen → weiterhin angemeldet
 
-**Prüfung:**
-- [x] Emoji-Zählskript; Browser: alle Tabs, Onboarding, Modals, Benachrichtigungen
-
-**Abhängigkeiten:** Task 2
-**Dateien:** `src/App.jsx`, `CLAUDE.md` (Design-System: Icons statt Emojis; `BREAKER_CATS` mit Icon-Namen)
-**Umfang:** M (eine Datei, aber ca. 150 Stellen; ggf. in 2 Commits teilen: Daten / Oberfläche)
+**Prüfung:** Vitest für die neuen Funktionen; Klicktest Anh (neue und bekannte E-Mail, Neuladen)
+**Abhängigkeiten:** Task 2 · **Dateien:** `src/App.jsx`, `src/logic.js`, `src/logic.test.js` · **Umfang:** M
 
 ---
 
-### Task 3: Home Teil 1: Motivation, Batterie-Übersicht, „Ich brauch was!“
+### Task 4: Erneut senden, Fehlerfälle, Barrierefreiheit
 
-**Beschreibung:** Abschnitte B, C und E aus CLAUDE.md Abschnitt 2. Motivationstext nach Batterie-Durchschnitt, die 3 niedrigsten Batterien als Karten mit Sprung zum Batterie-Tab, der Zufalls-Button öffnet das vorhandene Modal.
+**Beschreibung:** „Code erneut senden“ nach 60 s mit Countdown, „Andere E-Mail-Adresse“. Freundliche Meldungen für falschen Code, abgelaufenen Code (mit direktem „Neuen Code senden“), zu viele Anfragen und offline. Labels, `role="alert"` für Fehler, Fokus nach jedem Schritt, `autoComplete="email"` bzw. `"one-time-code"`, `inputMode="numeric"`.
 
 **Akzeptanzkriterien:**
-- [x] Alle 6 Textvarianten (5 Stufen und „keine Batterien“) erscheinen passend
-- [x] Tap auf eine Batterie-Karte öffnet genau diese Kategorie im Batterie-Tab
-- [x] Sonderfälle: keine Batterien → Einrichtungs-Karte; alle über 80 % → „Alle Batterien geladen! 💚“
+- [ ] Jeder Fehlerfall zeigt einen deutschen Satz, und die App bleibt bedienbar
+- [ ] Countdown korrekt, Button erst danach aktiv
+- [ ] Komplett mit Tastatur bedienbar, Kontraste mind. 4,5:1
 
-**Prüfung:**
-- [x] Browser: mit leeren Daten, mit Onboarding-Start-Habits und mit überfälligen Habits
-
-**Abhängigkeiten:** Task 2
-**Dateien:** `src/App.jsx`
-**Umfang:** S
+**Prüfung:** Vitest (`authErrorText`, Countdown); Klicktest Anh (falscher Code, Flugmodus, zu früh erneut senden)
+**Abhängigkeiten:** Task 3 · **Dateien:** `src/App.jsx`, `src/logic.js`, `src/logic.test.js` · **Umfang:** S
 
 ---
 
-### Task 4: Home Teil 2: „Heute dran“ (Habits) und Tipp des Tages
+### Task 5: Konto-Panel im Header mit Abmelden
 
-**Beschreibung:** Abschnitt D, vorerst nur mit Habits (die Breaker-Schritte kommen in Task 10), und Abschnitt F. Der Tipp wechselt täglich, mit dem Datum als Startwert für die Zufallsauswahl.
+**Beschreibung:** Personen-Icon neben der Glocke (`aria-label="Konto"`). Öffnet ein Panel im Stil des Benachrichtigungs-Panels mit der E-Mail-Adresse und „Abmelden“ (`signOut`). Lokale App-Daten bleiben in diesem Modul beim Abmelden erhalten.
 
 **Akzeptanzkriterien:**
-- [x] Die 3 dringendsten Habits mit farbigem Punkt, „Erledigt ✓“ ruft `checkIn` auf und gibt ⭐
-- [x] Nichts fällig → „Alles erledigt — gut gemacht! 🌿“
-- [x] Der Tipp bleibt am selben Tag gleich; Tap öffnet die passende Hilfe-Kategorie
+- [ ] Panel zeigt die richtige E-Mail, „Abmelden“ führt zum Login-Bildschirm
+- [ ] Nach erneutem Login sind die lokalen Daten noch da
+- [ ] Glocken-Panel und Konto-Panel sind nie gleichzeitig offen
 
-**Prüfung:**
-- [x] Browser; Tipp-Wechsel durch Ändern des Datums im Prüfskript nachvollziehen
-
-**Abhängigkeiten:** Task 3
-**Dateien:** `src/App.jsx`
-**Umfang:** S
+**Prüfung:** Klicktest Anh
+**Abhängigkeiten:** Task 3 · **Dateien:** `src/App.jsx` · **Umfang:** S
 
 ---
 
-## ✅ Checkpoint 1: Navigation und Home
-- [x] Alle 5 Tabs erreichbar, Home ohne Scrollen für den Kerninhalt (auf iPhone-Größe)
-- [x] Commit und Push auf `feature/v6` → Vercel-Vorschau (geschützt, nur mit Vercel-Login)
-- [x] Offene Fragen aus `plan.md` beantwortet (Streak, Löschen, Bearbeiten)
-
----
-
-## Phase 2: Breaker-Kern
-
-### Task 5: Terminplanung als Funktion und Prüfskript
-
-**Beschreibung:** Hilfsfunktionen oberhalb der Komponente: lokales Datum `YYYY-MM-DD`, Tage addieren, und `planDue(steps, deadline, today)`. Mit Frist werden die Schritte von heute bis heute + 80 % der Resttage verteilt, ohne Frist 1 pro Tag. Von Hand gesetzte Termine (`dueManual`) bleiben erhalten.
-
-**Akzeptanzkriterien:**
-- [x] 5 Schritte und Frist in 10 Tagen → Termine liegen zwischen heute und Tag 8, Schritt 1 ist heute
-- [x] Frist heute oder morgen → alle Schritte heute (kein Datum in der Vergangenheit)
-- [x] Kein Datum → heute, +1, +2 …; Monats- und Jahreswechsel korrekt
-
-**Prüfung:**
-- [x] Prüfskript im Scratchpad (Node) mit diesen Fällen, alle grün
-
-**Abhängigkeiten:** Task 1
-**Dateien:** `src/App.jsx`
-**Umfang:** XS
-
----
-
-### Task 6: Rauskippen: Schnelleingabe und Meilenstein-Liste
-
-**Beschreibung:** `tasks`-Zustand mit Speicherung. Breaker-Tab mit Schnelleingabe (Text und optionales Datum, Enter speichert, Fokus bleibt), Bereich „🧩 Noch nicht zerlegt“, geplante Meilensteine, eingeklappte erledigte und ein Empty State mit Raupe.
-
-**Akzeptanzkriterien:**
-- [x] 5 Meilensteine lassen sich in unter 30 Sekunden eintippen (Enter, tippen, Enter …)
-- [x] Sortierung nach Frist, Einträge ohne Datum unten
-- [x] Alte Speicherstände ohne `tasks` laden fehlerfrei
-
-**Prüfung:**
-- [x] Browser inkl. Neuladen; ein alter localStorage-Stand (ohne `tasks`) wird korrekt geladen
-
-**Abhängigkeiten:** Task 2, Task 5
-**Dateien:** `src/App.jsx`
-**Umfang:** S
-
----
-
-### Task 7: Fragebogen Pflichtteil
-
-**Beschreibung:** „Zerlegen →“ öffnet den Fragebogen mit einer Frage pro Bildschirm und Fortschrittspunkten. Bildschirm 1: Kategorie-Chips. Bildschirm 2: Schritte aus der Vorlage, bearbeitbar, mit berechneten Terminen. „Fertig zerlegt 🧩“ speichert und öffnet die Schritt-Ansicht. Name und Datum sind hier noch änderbar.
-
-**Akzeptanzkriterien:**
-- [x] Ohne Kategorie geht es nicht weiter; die Vorlage passt zur gewählten Kategorie
-- [x] Schritte lassen sich bearbeiten, löschen und hinzufügen; ein Termin kann von Hand geändert werden (setzt `dueManual`)
-- [x] „← Zurück“ verliert keine Eingaben
-
-**Prüfung:**
-- [x] Browser: einen Meilenstein mit und einen ohne Frist zerlegen
-
-**Abhängigkeiten:** Task 6
-**Dateien:** `src/App.jsx`
-**Umfang:** M
-
----
-
-### Task 8: Schritt-Ansicht und Abschluss-Feier
-
-**Beschreibung:** Liste der Schritte mit Checkbox (+1 ⭐), Text bearbeiten, „+1 Tag“ und Datumsfeld, ×, „+ Eigenen Schritt“. Wenn alles erledigt ist: Konfetti, +5 ⭐ und Abschlussnachricht; `completed` wird gesetzt, `lastProgress` wird bei jedem Abhaken aktualisiert.
-
-**Akzeptanzkriterien:**
-- [x] Abhaken gibt genau +1 ⭐, und ein versehentliches Doppel-Tippen gibt nicht doppelt
-- [x] Letzter Schritt → Feier mit +5 ⭐ (die vorhandene Feier zeigt „+1 ⭐“ und muss den Bonus korrekt anzeigen)
-- [x] Der erledigte Meilenstein wandert in „Erledigt“
-
-**Prüfung:**
-- [x] Browser: Sternezähler vor und nach dem Abhaken vergleichen, Neuladen
-
-**Abhängigkeiten:** Task 7
-**Dateien:** `src/App.jsx`
-**Umfang:** M
-
----
-
-## ✅ Checkpoint 2: Kernablauf
-- [x] Rauskippen → Zerlegen → Abhaken → Feier funktioniert durchgehend auf Handybreite
-- [x] Commit und Push auf `feature/v6`, gemeinsamer Test in der Vercel-Vorschau
-
----
-
-## Phase 3: Breaker-Feinschliff
-
-### Task 9: Optionale Fragen
-
-**Beschreibung:** Hinweis „Noch ein paar Fragen? (optional)“, danach einzeln überspringbare Bildschirme: Warum, kleinster erster Schritt (wird Schritt 1), echte oder selbst gesetzte Frist (nur mit Datum), Belohnung (Freitext und Chips aus Sides und Appetizers, keine Entrées). „Warum“ und Belohnung werden in der Schritt-Ansicht angezeigt.
-
-**Akzeptanzkriterien:**
-- [x] Alle 4 Fragen einzeln überspringbar, „Alle überspringen“ möglich
-- [x] Die Belohnungs-Chips enthalten auch selbst angelegte Sides und Appetizers
-- [x] Die Abschluss-Feier nennt die Belohnung („Du hast dir … verdient! 🎁“)
-
-**Prüfung:**
-- [x] Browser: einmal alles ausfüllen, einmal alles überspringen
-
-**Abhängigkeiten:** Task 8
-**Dateien:** `src/App.jsx`
-**Umfang:** S
-
----
-
-### Task 10: Fällige Schritte auf Home
-
-**Beschreibung:** „Heute dran“ (Task 4) um bis zu 3 fällige bzw. überfällige Breaker-Schritte erweitern. „Erledigt ✓“ hakt den Schritt ab, ein Tap auf den Text öffnet den Meilenstein.
-
-**Akzeptanzkriterien:**
-- [x] Nur Schritte mit Termin heute oder früher, die überfälligsten zuerst
-- [x] Abhaken auf Home verhält sich genauso wie im Breaker (⭐, Feier beim letzten Schritt)
-
-**Prüfung:**
-- [x] Browser mit einem überfälligen Schritt (Datum per Datumsfeld zurücksetzen)
-
-**Abhängigkeiten:** Task 4, Task 8
-**Dateien:** `src/App.jsx`
-**Umfang:** S
-
----
-
-### Task 11: Sanfte Hinweise
-
-**Beschreibung:** Drei Hinweise: (a) Frist vorbei → „Neues Datum oder loslassen 🍃?“ mit Rückfrage in der App (kein `window.confirm`); (b) mehr als 3 Tage ohne Fortschritt → „Steckst du fest? 🐢“ mit Link zur Hilfe; (c) „X Meilensteine warten noch aufs Zerlegen 🐢“.
-
-**Akzeptanzkriterien:**
-- [x] Kein Rot und kein Alarm-Wording
-- [x] „Neues Datum“ berechnet die offenen Schritte neu, von Hand gesetzte Termine bleiben
-- [x] „Loslassen“ entfernt den Meilenstein erst nach Bestätigung
-
-**Prüfung:**
-- [x] Browser mit manipulierten Daten (Frist in der Vergangenheit, `lastProgress` vor 4 Tagen)
-
-**Abhängigkeiten:** Task 8
-**Dateien:** `src/App.jsx`
-**Umfang:** S
-
----
-
-## ✅ Checkpoint 3: Fertig
-- [x] Alle Akzeptanzkriterien oben erfüllt
-- [x] CLAUDE.md aktualisiert: Stand v6, 5 Tabs, Onboarding dokumentiert, Abschnitt „Änderungen“ abgeschlossen
-- [x] Merge `feature/v6` → `main` **nach deinem OK** (Vercel stellt live) → 05.10. live (`483c45d`)
+## ✅ Checkpoint B: Modul `identity` fertig
+- [ ] Klicktest-Checkliste (lokal + Vercel-Vorschau, iPhone: Code-Vorschlag der Tastatur)
+- [ ] `SPEC-identity.md` abgeglichen, CLAUDE.md um Abschnitt „Login“ ergänzt
+- [ ] Push `feature/v7` (Vorschau). **Kein** Merge nach `main` (erst nach allen drei Modulen)
+- [ ] Danach: Spezifikation `cloud-sync`

@@ -75,7 +75,7 @@ Die App hat **5 Tabs** in einem festen Glas-Footer: **Home** (Start) · **Menü*
 
 ## Spezifikation v6 (umgesetzt am 05.10.2026)
 
-> Die folgenden Abschnitte waren der Auftrag für v6 und sind umgesetzt. Sie bleiben als Referenz für das gewünschte Verhalten stehen. Abweichungen und spätere Entscheidungen sind direkt im Text vermerkt. Herleitung des Breakers: `docs/ideas/breaker-meilensteine.md`, Umsetzungsplan: `tasks/plan.md`.
+> Die folgenden Abschnitte waren der Auftrag für v6 und sind umgesetzt. Sie bleiben als Referenz für das gewünschte Verhalten stehen. Abweichungen und spätere Entscheidungen sind direkt im Text vermerkt. Herleitung des Breakers: `docs/ideas/breaker-meilensteine.md`, Umsetzungsplan: `tasks/archive/v6-plan.md`.
 
 > **Wichtig: Keine Emojis in der Oberfläche.** Die App nutzt seit Oktober 2026 bunte Google Material Symbols statt Emojis (siehe Design-System → Icons). Emojis in den Texten dieses Dokuments sind nur Platzhalter. In Buttons und Überschriften wird daraus ein passendes Icon. Steht ein Emoji am Ende eines Satzes (z.B. „Weiter so! 💪“), wird es weggelassen.
 
@@ -470,8 +470,10 @@ dopamin-menu/
 ├── docs/ideas/
 │   └── breaker-meilensteine.md  ← Herleitung des Breaker-Konzepts
 ├── tasks/
-│   ├── plan.md           ← Umsetzungsplan v6 (Entscheidungen, Risiken)
-│   └── todo.md           ← Aufgaben mit Akzeptanzkriterien
+│   ├── plan.md           ← aktueller Umsetzungsplan (Entscheidungen, Risiken)
+│   ├── todo.md           ← aktuelle Aufgaben mit Akzeptanzkriterien
+│   └── archive/          ← abgeschlossene Pläne (v6-plan.md, v6-todo.md)
+├── docs/specs/           ← v7: Bauplan (v7-capability-map.md) + Spezifikationen pro Modul (SPEC-*.md)
 ├── index.html
 ├── package.json
 └── CLAUDE.md             ← dieses Dokument
