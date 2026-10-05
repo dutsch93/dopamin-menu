@@ -184,12 +184,12 @@
 **Beschreibung:** „Zerlegen →“ öffnet den Fragebogen mit einer Frage pro Bildschirm und Fortschrittspunkten. Bildschirm 1: Kategorie-Chips. Bildschirm 2: Schritte aus der Vorlage, bearbeitbar, mit berechneten Terminen. „Fertig zerlegt 🧩“ speichert und öffnet die Schritt-Ansicht. Name und Datum sind hier noch änderbar.
 
 **Akzeptanzkriterien:**
-- [ ] Ohne Kategorie geht es nicht weiter; die Vorlage passt zur gewählten Kategorie
-- [ ] Schritte lassen sich bearbeiten, löschen und hinzufügen; ein Termin kann von Hand geändert werden (setzt `dueManual`)
-- [ ] „← Zurück“ verliert keine Eingaben
+- [x] Ohne Kategorie geht es nicht weiter; die Vorlage passt zur gewählten Kategorie
+- [x] Schritte lassen sich bearbeiten, löschen und hinzufügen; ein Termin kann von Hand geändert werden (setzt `dueManual`)
+- [x] „← Zurück“ verliert keine Eingaben
 
 **Prüfung:**
-- [ ] Browser: einen Meilenstein mit und einen ohne Frist zerlegen
+- [x] Browser: einen Meilenstein mit und einen ohne Frist zerlegen
 
 **Abhängigkeiten:** Task 6
 **Dateien:** `src/App.jsx`

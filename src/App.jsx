@@ -132,6 +132,18 @@ const BREAKER_CATS=[
   {id:"kreatives",icon:"palette",label:"Kreatives",color:"#FFB5A7",colorDark:"#A6472F",colorLight:"#FFEAE6",steps:["Inspiration sammeln (1–2 Referenzen reichen)","Material / Tools bereitlegen","Einfach anfangen — perfekt muss es nicht sein","15 Min dranbleiben, dann Pause erlaubt","Ergebnis würdigen — egal wie es aussieht"]},
   {id:"haushalt",icon:"cleaning_services",label:"Haushalt",color:"#D8B8D8",colorDark:"#85508A",colorLight:"#F4EBF4",steps:["Einen einzigen Bereich / eine Aufgabe wählen","Timer auf 10 Minuten stellen","Loslegen — nur das Nötigste","Timer klingelt? Entscheide ob du weitermachst oder aufhörst","Aufräumen / Müll rausbringen"]},
 ];
+// Gespeicherte Meilensteine beim Laden prüfen: kaputte Einträge weglassen, fehlende Felder auffüllen.
+// So kann beschädigter localStorage den Breaker nicht zum Absturz bringen.
+const isYmd=v=>typeof v==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(v);
+function cleanTasks(raw){
+  if(!Array.isArray(raw))return[];
+  return raw.filter(t=>t&&typeof t.id==="string"&&typeof t.name==="string").map(t=>({
+    id:t.id,name:t.name,deadline:isYmd(t.deadline)?t.deadline:null,deadlineType:t.deadlineType==="hard"||t.deadlineType==="soft"?t.deadlineType:null,
+    category:BREAKER_CATS.some(c=>c.id===t.category)?t.category:null,why:typeof t.why==="string"?t.why:"",reward:typeof t.reward==="string"?t.reward:"",
+    steps:(Array.isArray(t.steps)?t.steps:[]).filter(s=>s&&typeof s.id==="string"&&typeof s.text==="string").map(s=>({id:s.id,text:s.text,done:!!s.done,custom:!!s.custom,due:isYmd(s.due)?s.due:null,dueManual:!!s.dueManual})),
+    created:typeof t.created==="string"?t.created:new Date(0).toISOString(),lastProgress:typeof t.lastProgress==="string"?t.lastProgress:null,completed:typeof t.completed==="string"?t.completed:null,
+  }));
+}
 // Sortierung: früheste Frist zuerst, ohne Frist ganz unten, sonst nach Erstellung
 const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12-31";return x<y?-1:x>y?1:a.created<b.created?-1:1;};
 
@@ -199,12 +211,15 @@ export default function DopaminMenu(){
   const timerRef=useRef(null);
 
   // Breaker: Meilensteine + Zustand der Breaker-Ansicht
-  const[tasks,setTasks]=useState(st?.tasks||[]);
+  const[tasks,setTasks]=useState(()=>cleanTasks(st?.tasks));
   const[bkName,setBkName]=useState("");const[bkDate,setBkDate]=useState("");
   const[bkDel,setBkDel]=useState(null);   // id des Meilensteins, bei dem gerade "Wirklich löschen?" gefragt wird
   const[bkOpen,setBkOpen]=useState(null); // id des geöffneten Meilensteins (Fragebogen / Schritte)
   const bkInput=useRef(null);
   const[todayYmd]=useState(()=>ymd(new Date()));
+  // Fragebogen: Entwurf wird erst bei "Fertig zerlegt" in den Meilenstein übernommen
+  const[draft,setDraft]=useState(null); // {name, deadline, category, steps} oder null
+  const[bkQ,setBkQ]=useState(1);         // aktueller Fragebogen-Bildschirm
 
   // persist
   useEffect(()=>{sv({items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile,tasks});},[items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile,tasks]);
@@ -281,13 +296,28 @@ export default function DopaminMenu(){
   const rmH=hid=>{setHabits(p=>p.filter(h=>h.id!==hid));};
   const goToHelp=hid=>{setTab("hilfe");setOpenProb(hid);setOpenCat(null);setShowNotifs(false);};
   // Tab wechseln und offene Detailansichten schließen (Footer-Navigation)
-  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setBkOpen(null);setBkDel(null);};
+  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setBkOpen(null);setBkDel(null);setDraft(null);};
 
   // Breaker: Meilenstein schnell eintippen ("Rauskippen"). Feld wird sofort geleert, Fokus bleibt für den nächsten Eintrag.
   const addTask=e=>{e.preventDefault();const n=bkName.trim();if(!n)return;
     setTasks(p=>[...p,{id:"t_"+Date.now(),name:n,deadline:bkDate||null,deadlineType:null,category:null,why:"",reward:"",steps:[],created:new Date().toISOString(),lastProgress:null,completed:null}]);
     setBkName("");setBkDate("");bkInput.current?.focus();};
   const rmTask=id=>{setTasks(p=>p.filter(t=>t.id!==id));setBkDel(null);};
+
+  // Fragebogen ("Zerlegen →")
+  const startBreak=t=>{setBkOpen(t.id);setBkQ(1);setDraft({name:t.name,deadline:t.deadline||"",category:null,steps:[]});};
+  const closeBreak=()=>{setBkOpen(null);setDraft(null);};
+  // Kategorie wählen -> Schritt-Vorlage einsetzen (nur wenn sich die Kategorie wirklich ändert)
+  const pickBkCat=cid=>setDraft(d=>d.category===cid?d:{...d,category:cid,steps:BREAKER_CATS.find(c=>c.id===cid).steps.map((text,i)=>({id:"s"+(i+1),text,done:false,custom:false,due:null,dueManual:false}))});
+  // Bei jedem Wechsel auf die Schritte werden die automatischen Termine neu verteilt (z.B. nach Änderung der Frist)
+  const toBkSteps=()=>{setDraft(d=>({...d,steps:planDue(d.steps,d.deadline||null,todayYmd)}));setBkQ(2);};
+  const updDraftStep=(sid,patch)=>setDraft(d=>({...d,steps:d.steps.map(s=>s.id===sid?{...s,...patch}:s)}));
+  const rmDraftStep=sid=>setDraft(d=>({...d,steps:planDue(d.steps.filter(s=>s.id!==sid),d.deadline||null,todayYmd)}));
+  const addDraftStep=()=>setDraft(d=>({...d,steps:planDue([...d.steps,{id:"c"+Date.now(),text:"",done:false,custom:true,due:null,dueManual:false}],d.deadline||null,todayYmd)}));
+  // "Fertig zerlegt": leere Schritte weglassen, Termine final verteilen, in den Meilenstein speichern
+  const finishBreak=()=>{const steps=draft.steps.filter(s=>s.text.trim()).map(s=>({...s,text:s.text.trim()}));if(!steps.length)return;
+    setTasks(p=>p.map(t=>t.id===bkOpen?{...t,name:draft.name.trim()||t.name,deadline:draft.deadline||null,category:draft.category,steps:planDue(steps,draft.deadline||null,todayYmd)}:t));
+    setDraft(null);};
   const unplanned=tasks.filter(t=>!t.steps.length).sort(byDeadline);
   const planned=tasks.filter(t=>t.steps.length&&!t.completed).sort(byDeadline);
   const doneTasks=tasks.filter(t=>t.completed).sort((a,b)=>a.completed<b.completed?1:-1).slice(0,5);
@@ -535,10 +565,53 @@ export default function DopaminMenu(){
 
       {/* ═══ BREAKER ═══ */}
       {tab==="breaker"&&!timerOn&&<div style={S.home}>
-        {bkOpen?(
-          /* Fragebogen / Schritt-Ansicht (Platzhalter, wird in Task 7+8 gebaut) */
-          <div><button style={S.bk} onClick={()=>setBkOpen(null)}>← Zurück</button><div style={S.soon}><Caterpillar size={56} animate/><p>Der Fragebogen kommt im nächsten Schritt.</p></div></div>
-        ):(<>
+        {bkOpen&&draft?(()=>{const dc=BREAKER_CATS.find(c=>c.id===draft.category);return(
+          /* Stufe 2: Fragebogen – eine Frage pro Bildschirm */
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <button style={{...S.bk,alignSelf:"flex-start"}} onClick={()=>bkQ===1?closeBreak():setBkQ(1)}>← Zurück</button>
+            <div style={S.obProg} aria-hidden="true">{[1,2].map(n=><div key={n} style={{...S.obDot,background:bkQ>=n?"#D9709A":"#E8E0D8"}}/>)}</div>
+            <p style={S.srOnly}>Frage {bkQ} von 2</p>
+
+            {bkQ===1&&<div style={S.bkForm}>
+              <h2 style={S.bkH}>Was ist das für eine Aufgabe?</h2>
+              <label htmlFor="bkq-name" style={S.fL}>Name</label>
+              <input id="bkq-name" style={S.bkInp} value={draft.name} onChange={e=>setDraft(d=>({...d,name:e.target.value}))}/>
+              <label htmlFor="bkq-date" style={S.fL}>Bis wann? <span style={{fontWeight:500,color:"#6B5F7F"}}>(optional)</span></label>
+              <input id="bkq-date" type="date" min={todayYmd} style={{...S.bkDate,flex:"none"}} value={draft.deadline} onChange={e=>setDraft(d=>({...d,deadline:e.target.value}))}/>
+              <p id="bkq-cat" style={S.fL}>Kategorie</p>
+              <div role="group" aria-labelledby="bkq-cat" style={S.bkCats}>{BREAKER_CATS.map(c=>{const on=draft.category===c.id;return(
+                <button key={c.id} aria-pressed={on} style={{...S.bkChip,borderColor:on?c.colorDark:c.color,background:on?c.colorLight:"#fff"}} onClick={()=>pickBkCat(c.id)}>
+                  <Icon name={c.icon} color={c.colorDark} size={20}/><span style={{flex:1,textAlign:"left"}}>{c.label}</span>{on&&<Icon name="check" color={c.colorDark} size={16}/>}
+                </button>
+              );})}</div>
+              <button style={{...S.bkNext,opacity:draft.category?1:.5}} disabled={!draft.category} onClick={toBkSteps}>Weiter →</button>
+            </div>}
+
+            {bkQ===2&&dc&&<div style={S.bkForm}>
+              <h2 style={S.bkH}>Deine Schritte</h2>
+              <p style={{fontSize:12,color:"#6B5F7F",lineHeight:1.4}}>Vorschlag für „{dc.label}“. Tipp einen Schritt an, um ihn zu ändern. Die Termine sind automatisch verteilt{draft.deadline?` bis kurz vor dem ${fmtDay(draft.deadline)}`:", ein Schritt pro Tag"}.</p>
+              <ol style={{listStyle:"none",display:"flex",flexDirection:"column",gap:8}}>{draft.steps.map((s,i)=>(
+                <li key={s.id} style={{display:"flex",alignItems:"flex-start",gap:8}}>
+                  <span aria-hidden="true" style={{...S.bkNum,background:dc.colorLight,color:dc.colorDark}}>{i+1}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <input aria-label={`Schritt ${i+1}`} style={S.bkStepInp} value={s.text} placeholder="Was ist zu tun?" onChange={e=>updDraftStep(s.id,{text:e.target.value})}/>
+                    <input type="date" aria-label={`Termin für Schritt ${i+1}`} min={todayYmd} style={S.bkDateSm} value={s.due||""} onChange={e=>updDraftStep(s.id,{due:e.target.value||null,dueManual:!!e.target.value})}/>
+                  </div>
+                  <button style={S.bkX} aria-label={`Schritt ${i+1} löschen`} onClick={()=>rmDraftStep(s.id)}><Icon name="close" color="#6B5F7F" size={18}/></button>
+                </li>
+              ))}</ol>
+              <button style={{...S.bkBtn,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:4}} onClick={addDraftStep}><Icon name="add" color="#A83D61" size={16}/>Eigenen Schritt hinzufügen</button>
+              <button style={{...S.bkNext,opacity:draft.steps.some(s=>s.text.trim())?1:.5}} disabled={!draft.steps.some(s=>s.text.trim())} onClick={finishBreak}><Icon name="extension" color="#fff" size={20}/>Fertig zerlegt</button>
+            </div>}
+          </div>
+        );})():bkOpen?(()=>{const ot=tasks.find(t=>t.id===bkOpen);return(
+          /* Schritt-Ansicht (Platzhalter mit Leseansicht, wird in Task 8 gebaut) */
+          <div><button style={S.bk} onClick={()=>setBkOpen(null)}>← Zurück</button>
+            {ot&&<div style={S.bkForm}><h2 style={S.bkH}>{ot.name}</h2>
+              <ol style={{paddingLeft:18,fontSize:13,color:"#5B4A6A",display:"flex",flexDirection:"column",gap:4}}>{ot.steps.map(s=><li key={s.id}>{s.text} <span style={{color:"#6B5F7F",fontSize:11}}>· {s.due?fmtDay(s.due):"ohne Termin"}{s.dueManual?" (von Hand)":""}</span></li>)}</ol>
+              <p style={{fontSize:11,color:"#6B5F7F"}}>Abhaken und Bearbeiten kommen im nächsten Schritt.</p></div>}
+          </div>
+        );})():(<>
           {/* Stufe 1: Rauskippen – nur Name und optionales Datum, Enter speichert sofort */}
           <form onSubmit={addTask} style={S.bkForm}>
             <label htmlFor="bk-name" style={{...S.secT,marginBottom:0}}>Was steht an?</label>
@@ -569,7 +642,7 @@ export default function DopaminMenu(){
                     <button style={{...S.bkBtn,background:"#F0EAF5",color:"#5B4A6A"}} onClick={()=>setBkDel(null)}>Abbrechen</button>
                   </span>
                 ):(<>
-                  <button style={S.bkBtn} onClick={()=>setBkOpen(t.id)}>Zerlegen →</button>
+                  <button style={S.bkBtn} onClick={()=>startBreak(t)}>Zerlegen →</button>
                   <button style={S.bkX} aria-label={`${t.name} löschen`} onClick={()=>setBkDel(t.id)}><Icon name="close" color="#6B5F7F" size={18}/></button>
                 </>)}
               </div>
@@ -673,6 +746,15 @@ const S={
   bkBtn:{border:"none",borderRadius:10,padding:"6px 10px",background:"#FDE2EA",color:"#A83D61",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",flexShrink:0},
   bkX:{display:"flex",alignItems:"center",justifyContent:"center",width:32,height:32,border:"none",background:"none",borderRadius:8,cursor:"pointer",flexShrink:0},
   bkBadge:{display:"inline-flex",alignItems:"center",gap:3,borderRadius:8,padding:"2px 8px",fontSize:10.5,fontWeight:600,flexShrink:0},
+  bkH:{fontSize:17,fontWeight:700,color:"#5B4A6A"},
+  bkCats:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6},
+  bkChip:{display:"flex",alignItems:"center",gap:8,border:"2px solid",borderRadius:14,padding:"8px 10px",fontSize:13,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer"},
+  bkNext:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,border:"none",borderRadius:14,padding:"12px 20px",marginTop:6,background:"#B8476C",color:"#fff",fontSize:15,fontWeight:700,fontFamily:"'Fredoka',sans-serif",cursor:"pointer"},
+  bkNum:{width:24,height:24,borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,flexShrink:0,marginTop:4},
+  bkStepInp:{border:"none",borderBottom:"2px solid #F0EAF5",padding:"4px 2px",fontSize:15,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",width:"100%",background:"transparent"},
+  bkDateSm:{border:"1.5px solid #E8E0D8",borderRadius:8,padding:"2px 6px",marginTop:4,fontSize:12,fontFamily:"'Fredoka',sans-serif",color:"#6B5F7F",background:"#fff"},
+  // Nur für Screenreader sichtbar
+  srOnly:{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0},
   bkDone:{background:"#fff",borderRadius:16,padding:"10px 12px",boxShadow:"0 2px 10px rgba(180,160,200,.1)"},
   miniBar:{display:"block",width:70,height:8,borderRadius:4,background:"#F0EAF5",overflow:"hidden",flexShrink:0},
   soon:{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"40px 16px",fontSize:14,fontWeight:600,color:"#9B8AAE",textAlign:"center"},
