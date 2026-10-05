@@ -150,7 +150,7 @@ const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
-const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","expand_more","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","hourglass_top","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
+const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","event_busy","expand_more","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","hourglass_top","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
 const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
 // Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
 const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
@@ -221,6 +221,9 @@ export default function DopaminMenu(){
   const[draft,setDraft]=useState(null); // {name, deadline, category, steps} oder null
   const[bkQ,setBkQ]=useState(1);         // aktueller Fragebogen-Bildschirm
   const[bkSec,setBkSec]=useState({open:true,work:true,done:false}); // welche Listen-Bereiche aufgeklappt sind
+  // "Frist vorbei": bei welchem Meilenstein gerade das Datumsfeld bzw. die Loslassen-Rückfrage offen ist
+  const[bkNewDate,setBkNewDate]=useState(null);const[bkLetGo,setBkLetGo]=useState(null);
+  const[bkToast,setBkToast]=useState(null); // kurze Nachricht unten (z.B. nach dem Loslassen)
 
   // persist
   useEffect(()=>{sv({items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile,tasks});},[items,stars,streak,lastDate,doneToday,habits,customTips,catOrder,notifSettings,onboardingProfile,tasks]);
@@ -297,7 +300,7 @@ export default function DopaminMenu(){
   const rmH=hid=>{setHabits(p=>p.filter(h=>h.id!==hid));};
   const goToHelp=hid=>{setTab("hilfe");setOpenProb(hid);setOpenCat(null);setShowNotifs(false);};
   // Tab wechseln und offene Detailansichten schließen (Footer-Navigation)
-  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setBkOpen(null);setBkDel(null);setDraft(null);};
+  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setBkOpen(null);setBkDel(null);setDraft(null);setBkNewDate(null);setBkLetGo(null);};
 
   // Breaker: Meilenstein schnell eintippen ("Rauskippen"). Feld wird sofort geleert, Fokus bleibt für den nächsten Eintrag.
   const addTask=e=>{e.preventDefault();const n=bkName.trim();if(!n)return;
@@ -372,6 +375,14 @@ export default function DopaminMenu(){
     <button style={{...S.homeDone,...(on?S.homeDoneOn:{})}} aria-label={on?`${label}: erledigt`:`${label} erledigen`} onClick={()=>homeDo(key,fn)}>
       {on?<span style={{display:"inline-flex",alignItems:"center",gap:3,animation:"checkPop .4s ease-out"}}>Erledigt <Icon name="check" size={14}/></span>:"Erledigen"}
     </button>);};
+  // ── Sanfte Hinweise im Breaker (kein Rot, kein Alarm) ──
+  const pastDue=t=>!!t.deadline&&t.deadline<todayYmd&&!t.completed;
+  // Tage seit dem letzten abgehakten Schritt (bzw. seit dem Anlegen)
+  const stuckDays=t=>daysBetween(ymd(new Date(t.lastProgress||t.created)),todayYmd);
+  const isStuck=t=>!t.completed&&t.steps.some(s=>!s.done)&&stuckDays(t)>3;
+  // "Loslassen": Meilenstein entfernen + freundliche Nachricht
+  const letGo=id=>{rmTask(id);setBkOpen(null);setBkLetGo(null);setBkToast("Losgelassen. Das ist auch eine Entscheidung.");setTimeout(()=>setBkToast(null),3500);};
+
   // Home: Breaker-Schritte, die heute fällig oder überfällig sind (überfälligste zuerst, max. 3)
   const dueSteps=tasks.filter(t=>!t.completed).flatMap(t=>t.steps.filter(s=>!s.done&&s.due&&s.due<=todayYmd).map(s=>({t,s}))).sort((a,b)=>a.s.due<b.s.due?-1:a.s.due>b.s.due?1:0).slice(0,3);
 
@@ -490,6 +501,7 @@ export default function DopaminMenu(){
 
       {/* HINT */}
       {showHint && <div style={S.hint}>Du kannst alles jederzeit anpassen</div>}
+      {bkToast&&<div style={S.hint} role="status">{bkToast}</div>}
 
 
       {/* HEADER */}
@@ -719,6 +731,36 @@ export default function DopaminMenu(){
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <button style={{...S.bk,alignSelf:"flex-start"}} onClick={()=>{setBkOpen(null);setBkDel(null);}}>← Zurück</button>
 
+            {/* Sanfter Hinweis: Frist vorbei -> neues Datum oder loslassen */}
+            {pastDue(ot)&&<div style={S.bkHint} role="status">
+              <span style={{display:"flex",alignItems:"center",gap:8}}><Icon name="event_busy" color="#8A6A00" size={22}/>Die Frist ist vorbei – neues Datum oder loslassen?</span>
+              {bkNewDate===ot.id?(
+                <span style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <label htmlFor="bkh-date" style={{fontSize:12,fontWeight:600}}>Neue Frist:</label>
+                  <input id="bkh-date" type="date" min={todayYmd} autoFocus style={S.bkDateSm} onChange={e=>{if(e.target.value){setTaskDeadline(ot.id,e.target.value);setBkNewDate(null);}}}/>
+                  <button style={{...S.bkBtn,background:"#F0EAF5",color:"#5B4A6A"}} onClick={()=>setBkNewDate(null)}>Abbrechen</button>
+                </span>
+              ):bkLetGo===ot.id?(
+                <span style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:12.5}}>Wirklich loslassen? Der Meilenstein wird entfernt.</span>
+                  <button style={S.bkBtn} onClick={()=>letGo(ot.id)}>Loslassen</button>
+                  <button style={{...S.bkBtn,background:"#F0EAF5",color:"#5B4A6A"}} onClick={()=>setBkLetGo(null)}>Abbrechen</button>
+                </span>
+              ):(
+                <span style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <button style={S.bkBtn} onClick={()=>setBkNewDate(ot.id)}>Neues Datum</button>
+                  <button style={{...S.bkBtn,display:"flex",alignItems:"center",gap:4}} onClick={()=>setBkLetGo(ot.id)}><Icon name="eco" color="#A83D61" size={15}/>Loslassen</button>
+                </span>
+              )}
+            </div>}
+
+            {/* Sanfter Hinweis: länger als 3 Tage kein Fortschritt -> Tipps der Schildkröte */}
+            {isStuck(ot)&&<div style={{...S.bkHint,flexDirection:"row",alignItems:"center"}}>
+              <MiniAnimal type="start" size={36}/>
+              <span style={{flex:1}}>Steckst du fest? Die Schildkröte hat Tipps fürs Anfangen.</span>
+              <button style={S.bkBtn} onClick={()=>goToHelp("start")}>Tipps →</button>
+            </div>}
+
             {/* Erledigter Meilenstein: Hinweis, dass man Schritte wieder öffnen kann */}
             {ot.completed&&<p style={{...S.homeOk,justifyContent:"flex-start",textAlign:"left"}}><Icon name="check_circle" color="#5EC269" size={20}/><span>Erledigt am {fmtDay(ymd(new Date(ot.completed)))}. Verklickt? Nimm bei einem Schritt den Haken wieder raus – dann kommt der Meilenstein zurück zu „In Arbeit“.</span></p>}
 
@@ -783,6 +825,13 @@ export default function DopaminMenu(){
           {/* Leerer Zustand */}
           {tasks.length===0&&<div style={S.soon}><Caterpillar size={56} animate/><p>Was schwirrt dir im Kopf rum? Kipp's hier raus.</p></div>}
 
+          {/* Sanfter Anstoß, wenn mehrere Meilensteine aufs Zerlegen warten (bei einem reicht die Liste selbst) */}
+          {unplanned.length>1&&<div style={{...S.bkHint,flexDirection:"row",alignItems:"center",flexWrap:"wrap"}}>
+            <MiniAnimal type="start" size={36}/>
+            <span style={{flex:1,minWidth:160}}>{unplanned.length} Meilensteine warten noch aufs Zerlegen. Fang mit dem dringendsten an – einer reicht für heute.</span>
+            <button style={S.bkBtn} onClick={()=>startBreak(unplanned[0])}>„{unplanned[0].name.length>22?unplanned[0].name.slice(0,22)+"…":unplanned[0].name}“ zerlegen →</button>
+          </div>}
+
           {/* Stufe 2: Noch nicht zerlegt */}
           {unplanned.length>0&&<section aria-label="Noch nicht zerlegt">
             {bkHead("open","extension","#D9709A","Noch nicht zerlegt",unplanned.length)}
@@ -790,7 +839,7 @@ export default function DopaminMenu(){
               <div key={t.id} style={{...S.homeCard,cursor:"default",flexWrap:"wrap",animation:`fadeIn .3s ease-out ${i*.04}s both`}}>
                 <span style={{flex:1,minWidth:0}}>
                   <span style={{display:"block",overflowWrap:"anywhere"}}>{t.name}</span>
-                  <span style={{fontSize:10.5,fontWeight:500,color:"#6B5F7F"}}>{t.deadline?`bis ${fmtDay(t.deadline)}`:"ohne Datum"}</span>
+                  <span style={{fontSize:10.5,fontWeight:500,color:pastDue(t)?"#8A6A00":"#6B5F7F"}}>{t.deadline?(pastDue(t)?`Frist vorbei (${fmtDay(t.deadline)})`:`bis ${fmtDay(t.deadline)}`):"ohne Datum"}</span>
                 </span>
                 {bkDel===t.id?(
                   <span style={{display:"flex",alignItems:"center",gap:6}}>
@@ -817,7 +866,7 @@ export default function DopaminMenu(){
                 </span>
                 <span style={{display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:500,color:"#6B5F7F"}}>
                   <span style={{...S.miniBar,flex:1,width:"auto"}}><span style={{display:"block",height:"100%",width:`${d/t.steps.length*100}%`,background:c.color,borderRadius:4}}/></span>
-                  <span>{d}/{t.steps.length} Schritte{t.deadline?` · bis ${fmtDay(t.deadline)}`:""}</span>
+                  <span>{d}/{t.steps.length} Schritte{t.deadline?(pastDue(t)?<span style={{color:"#8A6A00"}}> · Frist vorbei</span>:` · bis ${fmtDay(t.deadline)}`):""}</span>
                 </span>
               </button>
             );})}</div>}
@@ -923,6 +972,8 @@ const S={
   bkDateSm:{border:"1.5px solid #E8E0D8",borderRadius:8,padding:"2px 6px",marginTop:4,fontSize:12,fontFamily:"'Fredoka',sans-serif",color:"#6B5F7F",background:"#fff"},
   // Nur für Screenreader sichtbar
   srOnly:{position:"absolute",width:1,height:1,padding:0,margin:-1,overflow:"hidden",clip:"rect(0,0,0,0)",whiteSpace:"nowrap",border:0},
+  // Sanfte Hinweise: warm, kein Rot
+  bkHint:{display:"flex",flexDirection:"column",gap:8,background:"#FFF4E4",border:"2px solid #FFD6A0",borderRadius:16,padding:"10px 12px",fontSize:13,fontWeight:600,color:"#5B4A6A"},
   bkSecHead:{display:"flex",alignItems:"center",gap:6,width:"100%",background:"none",border:"none",padding:"4px 0",marginBottom:6,fontSize:13,fontWeight:700,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer"},
   miniBar:{display:"block",width:70,height:8,borderRadius:4,background:"#F0EAF5",overflow:"hidden",flexShrink:0},
   soon:{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"40px 16px",fontSize:14,fontWeight:600,color:"#9B8AAE",textAlign:"center"},

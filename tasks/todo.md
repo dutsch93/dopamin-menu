@@ -263,12 +263,12 @@
 **Beschreibung:** Drei Hinweise: (a) Frist vorbei → „Neues Datum oder loslassen 🍃?“ mit Rückfrage in der App (kein `window.confirm`); (b) mehr als 3 Tage ohne Fortschritt → „Steckst du fest? 🐢“ mit Link zur Hilfe; (c) „X Meilensteine warten noch aufs Zerlegen 🐢“.
 
 **Akzeptanzkriterien:**
-- [ ] Kein Rot und kein Alarm-Wording
-- [ ] „Neues Datum“ berechnet die offenen Schritte neu, von Hand gesetzte Termine bleiben
-- [ ] „Loslassen“ entfernt den Meilenstein erst nach Bestätigung
+- [x] Kein Rot und kein Alarm-Wording
+- [x] „Neues Datum“ berechnet die offenen Schritte neu, von Hand gesetzte Termine bleiben
+- [x] „Loslassen“ entfernt den Meilenstein erst nach Bestätigung
 
 **Prüfung:**
-- [ ] Browser mit manipulierten Daten (Frist in der Vergangenheit, `lastProgress` vor 4 Tagen)
+- [x] Browser mit manipulierten Daten (Frist in der Vergangenheit, `lastProgress` vor 4 Tagen)
 
 **Abhängigkeiten:** Task 8
 **Dateien:** `src/App.jsx`

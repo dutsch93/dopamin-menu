@@ -62,7 +62,7 @@ Vier Dinge in dieser Reihenfolge:
 ### Phase 3: Breaker-Feinschliff
 - [x] Task 9: Optionale Fragen: Warum, erster Schritt, Frist-Typ, Belohnung
 - [x] Task 10: Fällige Schritte auf Home („Dein Fokus“, vorher „Heute dran“)
-- [ ] Task 11: Sanfte Hinweise: Frist vorbei, „Steckst du fest?“, „X warten aufs Zerlegen“
+- [x] Task 11: Sanfte Hinweise: Frist vorbei, „Steckst du fest?“, „X warten aufs Zerlegen“
 
 ### Checkpoint 3: Fertig
 - [ ] Alle Akzeptanzkriterien erfüllt, CLAUDE.md auf Stand v6 (inkl. Onboarding)
