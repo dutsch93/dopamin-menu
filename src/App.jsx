@@ -150,7 +150,7 @@ const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
-const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
+const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
 const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
 // Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
 const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
@@ -305,7 +305,13 @@ export default function DopaminMenu(){
   const rmTask=id=>{setTasks(p=>p.filter(t=>t.id!==id));setBkDel(null);};
 
   // Fragebogen ("Zerlegen →")
-  const startBreak=t=>{setBkOpen(t.id);setBkQ(1);setDraft({name:t.name,deadline:t.deadline||"",category:null,steps:[]});};
+  const startBreak=t=>{setBkOpen(t.id);setBkQ(1);setDraft({name:t.name,deadline:t.deadline||"",category:null,steps:[],why:"",first:"",deadlineType:null,reward:""});};
+  // Optionale Fragen (ab Bildschirm 3). "Echte Frist?" nur, wenn ein Datum gesetzt ist.
+  const bkOpt=draft?["why","first",...(draft.deadline?["dtype"]:[]),"reward"]:[];
+  const bkTotal=bkQ>2?2+bkOpt.length:2; // Fortschrittspunkte: optionale Fragen erst zeigen, wenn man sie beantworten will
+  const bkNextQ=()=>setBkQ(q=>q+1);
+  // Belohnungs-Vorschläge: Sides + Appetizers aus dem Menü (inkl. eigener Einträge), keine Entrées (= Deep Work)
+  const rewardIdeas=[...(items.side||[]),...(items.appetizer||[])].map(i=>i.name);
   const closeBreak=()=>{setBkOpen(null);setDraft(null);};
   // Kategorie wählen -> Schritt-Vorlage einsetzen (nur wenn sich die Kategorie wirklich ändert)
   const pickBkCat=cid=>setDraft(d=>d.category===cid?d:{...d,category:cid,steps:BREAKER_CATS.find(c=>c.id===cid).steps.map((text,i)=>({id:"s"+(i+1),text,done:false,custom:false,due:null,dueManual:false}))});
@@ -315,8 +321,13 @@ export default function DopaminMenu(){
   const rmDraftStep=sid=>setDraft(d=>({...d,steps:planDue(d.steps.filter(s=>s.id!==sid),d.deadline||null,todayYmd)}));
   const addDraftStep=()=>setDraft(d=>({...d,steps:planDue([...d.steps,{id:"c"+Date.now(),text:"",done:false,custom:true,due:null,dueManual:false}],d.deadline||null,todayYmd)}));
   // "Fertig zerlegt": leere Schritte weglassen, Termine final verteilen, in den Meilenstein speichern
-  const finishBreak=()=>{const steps=draft.steps.filter(s=>s.text.trim()).map(s=>({...s,text:s.text.trim()}));if(!steps.length)return;
-    setTasks(p=>p.map(t=>t.id===bkOpen?{...t,name:draft.name.trim()||t.name,deadline:draft.deadline||null,category:draft.category,steps:planDue(steps,draft.deadline||null,todayYmd)}:t));
+  // Der "kleinste erste Schritt" (optional) wird vorne als Schritt 1 eingefügt.
+  // "over" = Felder, die beim Speichern noch überschrieben werden (z.B. "Überspringen" bei der letzten Frage leert die Antwort)
+  const finishBreak=(over={})=>{const d={...draft,...over};let steps=d.steps.filter(s=>s.text.trim()).map(s=>({...s,text:s.text.trim()}));
+    if(d.first.trim())steps=[{id:"first",text:d.first.trim(),done:false,custom:true,due:null,dueManual:false},...steps];
+    if(!steps.length)return;
+    setTasks(p=>p.map(t=>t.id===bkOpen?{...t,name:d.name.trim()||t.name,deadline:d.deadline||null,category:d.category,steps:planDue(steps,d.deadline||null,todayYmd),
+      why:d.why.trim(),reward:d.reward.trim(),deadlineType:d.deadline?d.deadlineType:null}:t));
     setDraft(null);};
   // ── Schritt-Ansicht ──
   const updTask=(id,fn)=>setTasks(p=>p.map(t=>t.id===id?fn(t):t));
@@ -591,9 +602,9 @@ export default function DopaminMenu(){
         {bkOpen&&draft?(()=>{const dc=BREAKER_CATS.find(c=>c.id===draft.category);return(
           /* Stufe 2: Fragebogen – eine Frage pro Bildschirm */
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            <button style={{...S.bk,alignSelf:"flex-start"}} onClick={()=>bkQ===1?closeBreak():setBkQ(1)}>← Zurück</button>
-            <div style={S.obProg} aria-hidden="true">{[1,2].map(n=><div key={n} style={{...S.obDot,background:bkQ>=n?"#D9709A":"#E8E0D8"}}/>)}</div>
-            <p style={S.srOnly}>Frage {bkQ} von 2</p>
+            <button style={{...S.bk,alignSelf:"flex-start"}} onClick={()=>bkQ===1?closeBreak():setBkQ(q=>q-1)}>← Zurück</button>
+            <div style={S.obProg} aria-hidden="true">{[...Array(bkTotal)].map((_,n)=><div key={n} style={{...S.obDot,width:bkTotal>2?28:40,background:bkQ>n?"#D9709A":"#E8E0D8"}}/>)}</div>
+            <p style={S.srOnly}>Frage {bkQ} von {bkTotal}</p>
 
             {bkQ===1&&<div style={S.bkForm}>
               <h2 style={S.bkH}>Was ist das für eine Aufgabe?</h2>
@@ -624,8 +635,49 @@ export default function DopaminMenu(){
                 </li>
               ))}</ol>
               <button style={{...S.bkBtn,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:4}} onClick={addDraftStep}><Icon name="add" color="#A83D61" size={16}/>Eigenen Schritt hinzufügen</button>
-              <button style={{...S.bkNext,opacity:draft.steps.some(s=>s.text.trim())?1:.5}} disabled={!draft.steps.some(s=>s.text.trim())} onClick={finishBreak}><Icon name="extension" color="#fff" size={20}/>Fertig zerlegt</button>
+              <button style={{...S.bkNext,opacity:draft.steps.some(s=>s.text.trim())?1:.5}} disabled={!draft.steps.some(s=>s.text.trim())} onClick={()=>finishBreak()}><Icon name="extension" color="#fff" size={20}/>Fertig zerlegt</button>
+              {draft.steps.some(s=>s.text.trim())&&<button style={{...S.bk,alignSelf:"center",color:"#A83D61"}} onClick={()=>setBkQ(3)}>Noch ein paar Fragen? (optional) →</button>}
             </div>}
+
+            {/* Optionale Fragen – jede einzeln überspringbar, "Fertig zerlegt" jederzeit möglich */}
+            {bkQ>2&&(()=>{const k=bkOpt[bkQ-3];const last=bkQ-2>=bkOpt.length;
+              // Überspringen leert die Antwort dieser Frage; bei der letzten Frage wird direkt gespeichert
+              const skip=()=>{const clear=k==="why"?{why:""}:k==="first"?{first:""}:k==="dtype"?{deadlineType:null}:{reward:""};
+                if(last)finishBreak(clear);else{setDraft(d=>({...d,...clear}));bkNextQ();}};
+              return(<div style={S.bkForm}>
+                {k==="why"&&<>
+                  <label htmlFor="bkq-why" style={S.bkH}>Warum ist dir das wichtig?</label>
+                  <p style={{fontSize:12,color:"#6B5F7F"}}>Ein Satz reicht. Er steht später oben im Meilenstein – als Erinnerung, wenn's zäh wird.</p>
+                  <input id="bkq-why" style={S.bkInp} value={draft.why} placeholder="z.B. Damit ich ohne Stress in den Urlaub fahre" onChange={e=>setDraft(d=>({...d,why:e.target.value}))}/>
+                </>}
+                {k==="first"&&<>
+                  <label htmlFor="bkq-first" style={S.bkH}>Was ist der allerkleinste erste Schritt?</label>
+                  <p style={{fontSize:12,color:"#6B5F7F"}}>Etwas, das unter 2 Minuten dauert. Er wird als Schritt 1 vorne eingefügt.</p>
+                  <input id="bkq-first" style={S.bkInp} value={draft.first} placeholder="z.B. Ordner öffnen" onChange={e=>setDraft(d=>({...d,first:e.target.value}))}/>
+                </>}
+                {k==="dtype"&&<>
+                  <p id="bkq-dtype" style={S.bkH}>Ist die Frist echt oder selbst gesetzt?</p>
+                  <div role="group" aria-labelledby="bkq-dtype" style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {[{v:"hard",icon:"push_pin",l:"Echt",sub:"z.B. Behörde, Abgabe"},{v:"soft",icon:"eco",l:"Selbst gesetzt",sub:"wäre schön bis dahin"}].map(({v,icon:ic,l,sub})=>{const on=draft.deadlineType===v;return(
+                      <button key={v} aria-pressed={on} style={{...S.bkChip,flex:1,minWidth:140,borderColor:on?"#A83D61":"#F4A0B5",background:on?"#FCE4EA":"#fff"}} onClick={()=>setDraft(d=>({...d,deadlineType:v}))}>
+                        <Icon name={ic} color="#A83D61" size={20}/><span style={{flex:1,textAlign:"left"}}>{l}<span style={{display:"block",fontSize:11,fontWeight:500,color:"#6B5F7F"}}>{sub}</span></span>
+                      </button>);})}
+                  </div>
+                </>}
+                {k==="reward"&&<>
+                  <label htmlFor="bkq-reward" style={S.bkH}>Deine Belohnung</label>
+                  <p style={{fontSize:12,color:"#6B5F7F"}}>Was gönnst du dir, wenn alles erledigt ist? Eigene Idee eintippen oder einen Vorschlag antippen.</p>
+                  <input id="bkq-reward" style={S.bkInp} value={draft.reward} placeholder="z.B. Serie schauen, Eis essen" onChange={e=>setDraft(d=>({...d,reward:e.target.value}))}/>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6}} aria-label="Vorschläge aus dem Menü">{rewardIdeas.map((n,i)=>(
+                    <button key={i} style={{...S.bkBtn,background:draft.reward===n?"#FCE4EA":"#F8F4FF",color:"#5B4A6A",border:`1.5px solid ${draft.reward===n?"#A83D61":"transparent"}`}} onClick={()=>setDraft(d=>({...d,reward:n}))}>{n}</button>
+                  ))}</div>
+                </>}
+                <button style={S.bkNext} onClick={()=>last?finishBreak():bkNextQ()}>{last?<><Icon name="extension" color="#fff" size={20}/>Fertig zerlegt</>:"Weiter →"}</button>
+                <div style={{display:"flex",justifyContent:"center",gap:16,flexWrap:"wrap"}}>
+                  <button style={{...S.bk,color:"#6B5F7F"}} onClick={skip}>Überspringen</button>
+                  {!last&&<button style={{...S.bk,color:"#A83D61"}} onClick={()=>finishBreak()}>Alle überspringen – fertig zerlegt</button>}
+                </div>
+              </div>);})()}
           </div>
         );})():bkOpen?(()=>{const ot=tasks.find(t=>t.id===bkOpen);if(!ot)return null;const c=BREAKER_CATS.find(x=>x.id===ot.category)||BREAKER_CATS[0];const nDone=ot.steps.filter(s=>s.done).length;return(
           /* Stufe 3: Schritt-Ansicht – abhaken, bearbeiten, verschieben */
@@ -639,6 +691,7 @@ export default function DopaminMenu(){
                 <span style={{...S.bkBadge,background:c.colorLight,color:c.colorDark}}><Icon name={c.icon} color={c.colorDark} size={13}/>{c.label}</span>
                 <label htmlFor="bks-date" style={{fontSize:12,fontWeight:600,color:"#5B4A6A"}}>Frist:</label>
                 <input id="bks-date" type="date" min={todayYmd} style={S.bkDateSm} value={ot.deadline||""} onChange={e=>setTaskDeadline(ot.id,e.target.value)}/>
+                {ot.deadline&&ot.deadlineType&&<span style={{display:"inline-flex",alignItems:"center",gap:3,fontSize:11,fontWeight:600,color:"#6B5F7F"}}><Icon name={ot.deadlineType==="hard"?"push_pin":"eco"} color="#A83D61" size={14}/>{ot.deadlineType==="hard"?"echte Frist":"selbst gesetzt"}</span>}
               </div>
               <span style={{display:"flex",alignItems:"center",gap:8,fontSize:11.5,fontWeight:500,color:"#6B5F7F"}}>
                 <span style={{...S.miniBar,flex:1,width:"auto"}}><span style={{display:"block",height:"100%",width:`${nDone/ot.steps.length*100}%`,background:c.color,borderRadius:4,transition:"width .4s"}}/></span>
