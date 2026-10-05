@@ -47,8 +47,8 @@ Vier Dinge in dieser Reihenfolge:
 - [x] Task 4: Home Teil 2: „Heute dran“ (Habits), Tipp des Tages
 
 ### Checkpoint 1: Navigation und Home
-- [ ] Alle 5 Tabs erreichbar, Home zeigt echte Daten, Handy und Tablet sehen gut aus
-- [ ] Gemeinsamer Blick auf die Vercel-Vorschau
+- [x] Alle 5 Tabs erreichbar, Home zeigt echte Daten, Handy und Tablet sehen gut aus
+- [x] Gemeinsamer Blick auf die Vercel-Vorschau
 
 ### Phase 2: Breaker-Kern
 - [ ] Task 5: Terminplanung als Funktion und Prüfskript
@@ -79,8 +79,8 @@ Vier Dinge in dieser Reihenfolge:
 | `App.jsx` wird unübersichtlich | Mittel | Kommentar-Köpfe pro Bereich, Hilfsfunktionen oberhalb der Komponente. Eine Aufteilung in mehrere Dateien nur nach Rückfrage. |
 | Datei wird erneut beim Kopieren beschädigt | Hoch | Nur Datei-Werkzeuge verwenden, nach jedem Task Build und Lint. |
 
-## Offene Fragen (vor Phase 2 klären)
+## Entscheidungen zu Phase 2 (05.10., Checkpoint 1)
 
-1. **Zählen erledigte Schritte für 🔥 Streak und ✅ Heute?** Vorschlag: ja, weil auch ein Schritt eine Leistung ist.
-2. **Meilensteine löschen:** Laut Konzept geht das bisher nur über „Loslassen 🍃“ bei überschrittener Frist. Vorschlag: zusätzlich ein dezentes „Löschen“ in der Schritt-Ansicht und ein × bei ungeplanten Einträgen, jeweils mit Rückfrage in der App.
-3. **Name und Frist später ändern:** Vorschlag: in der Schritt-Ansicht antippen und bearbeiten. Termine offener Schritte werden neu berechnet, von Hand verschobene bleiben.
+1. **Erledigte Schritte zählen für Streak und „Heute“** (nicht nur für Sterne).
+2. **Löschen:** × bei ungeplanten Einträgen in der Liste, „Meilenstein löschen“ in der Schritt-Ansicht, jeweils mit Rückfrage in der App. Zusätzlich gibt es „Loslassen“ bei überschrittener Frist.
+3. **Name und Frist sind in der Schritt-Ansicht änderbar.** Bei neuer Frist werden die offenen Schritte neu verteilt, von Hand verschobene bleiben.

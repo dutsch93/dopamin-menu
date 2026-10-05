@@ -136,8 +136,8 @@
 
 ## ✅ Checkpoint 1: Navigation und Home
 - [x] Alle 5 Tabs erreichbar, Home ohne Scrollen für den Kerninhalt (auf iPhone-Größe)
-- [ ] Commit und Push auf `feature/v6` → Vercel-Vorschau gemeinsam ansehen
-- [ ] Offene Fragen aus `plan.md` beantwortet (Streak, Löschen, Bearbeiten)
+- [x] Commit und Push auf `feature/v6` → Vercel-Vorschau (geschützt, nur mit Vercel-Login)
+- [x] Offene Fragen aus `plan.md` beantwortet (Streak, Löschen, Bearbeiten)
 
 ---
 

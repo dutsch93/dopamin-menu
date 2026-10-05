@@ -255,7 +255,7 @@ const BREAKER_CATS = [
 
 #### Ansicht 1: Meilenstein-Liste (Default wenn Tab geöffnet wird)
 - Oben die **Schnelleingabe**: Textfeld „Was steht an?" + optionales Datumsfeld (`<input type="date">`). Enter speichert und leert das Feld sofort für den nächsten Eintrag (Fokus bleibt im Textfeld).
-- Darunter **„🧩 Noch nicht zerlegt"**: ungeplante Meilensteine (ohne Schritte), nach Frist sortiert, ohne Datum ganz unten. Jede Karte hat den Button „Zerlegen →".
+- Darunter **„🧩 Noch nicht zerlegt"**: ungeplante Meilensteine (ohne Schritte), nach Frist sortiert, ohne Datum ganz unten. Jede Karte hat den Button „Zerlegen →" und ein × zum Löschen (mit kurzer Rückfrage in der App).
 - Wenn ungeplante Meilensteine existieren: sanfter Hinweis „X Meilensteine warten noch aufs Zerlegen 🐢 – fang mit dem dringendsten an".
 - Darunter **geplante Meilensteine**: Name + Kategorie-Badge + Frist + Fortschrittsbalken (z.B. „3/5 Schritte"), nach Frist sortiert.
 - Erledigte Meilensteine zusammengeklappt darunter (letzte 5, ausgeblendet).
@@ -274,10 +274,12 @@ Eine Frage pro Bildschirm, Fortschrittspunkte oben, „← Zurück" möglich. Na
 
 #### Ansicht 3: Schritt-Ansicht (Tap auf geplanten Meilenstein)
 - Überschrift: Meilenstein-Name, Kategorie-Badge, Frist (+ 📌/🌱 falls gesetzt)
+- **Name und Frist sind antippbar und änderbar.** Bei neuer Frist werden die Termine der offenen Schritte neu berechnet (Schritte mit `dueManual: true` bleiben).
+- Dezenter Button **„Meilenstein löschen“** am Ende, mit kurzer Rückfrage in der App (kein `window.confirm`)
 - Das **„Warum"** steht oben in einer kleinen Karte (falls ausgefüllt)
 - **Belohnung** sichtbar: „🎁 Am Ziel wartet: [Belohnung]"
 - Nummerierte Liste der Schritte als Karten. Jeder Schritt hat:
-  - Checkbox zum Abhaken → sofort +1 ⭐
+  - Checkbox zum Abhaken → sofort +1 ⭐, zählt außerdem für ✅ Heute und 🔥 Streak (wie eine Menü-Aktivität)
   - Editierbaren Text (Input bei Tap)
   - Fälligkeitsdatum mit „+1 Tag"-Button und Datumsfeld zum Verschieben
   - Löschen-Button (×)
