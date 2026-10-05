@@ -22,6 +22,7 @@ Vier Dinge in dieser Reihenfolge:
 ## Architektur-Entscheidungen
 
 - **Reparatur auf Basis des sauberen Stands `3a43042`:** Die 12 Onboarding-Änderungen werden sauber neu eingesetzt. Das ist sicherer, als die 92 Umbrüche einzeln zusammenzuflicken, denn so kommen auch die versteckten Emoji-Leerzeichen nicht mit. Prüfung: Der Inhaltsvergleich ohne Leerraum zeigt nur die Onboarding-Änderungen.
+- **Icons über Google Fonts statt npm-Paket:** Die Material Symbols Rounded (gefüllt) werden wie Fredoka per `@import` geladen. Das ist keine neue Dependency, und es kommt kein neuer Drittanbieter dazu. Über `icon_names` lädt Google nur die verwendeten Icons. `display=block` verhindert, dass beim Laden kurz Wörter wie „home“ statt der Icons zu sehen sind.
 - **Alles bleibt in `src/App.jsx`**, wie in der CLAUDE.md festgelegt. Die Datei wächst dadurch auf schätzungsweise 900–1000 Zeilen. Das ist in Ordnung, solange jeder neue Bereich einen deutschen Kommentar-Kopf bekommt (`/* ═══ BREAKER ═══ */`).
 - **Terminplanung als reine Funktion** (`planDue(steps, deadline, today)`) oberhalb der Komponente. So lässt sie sich mit einem Skript prüfen, ohne Test-Framework.
 - **Datumsangaben als lokales `YYYY-MM-DD`** über eine eigene Hilfsfunktion, nicht über `toISOString()`. Die rechnet in UTC, und dann wäre ein Schritt nachts um 1 Uhr schon „gestern“ fällig.
@@ -37,10 +38,11 @@ Vier Dinge in dieser Reihenfolge:
 
 ### Checkpoint 0: Reparatur
 - [x] Build und Lint grün, Onboarding und alle 3 alten Tabs funktionieren im Browser
-- [ ] **Deine Entscheidung:** Reparatur sofort live stellen (Push auf `main`) oder warten?
+- [x] **Deine Entscheidung:** Reparatur sofort live stellen → am 05.10. live gestellt
 
 ### Phase 1: Navigation und Home
-- [ ] Task 2: Footer-Navigation mit 5 Tabs (Home und Breaker vorerst als Platzhalter)
+- [x] Task 2: Footer-Navigation mit 5 Tabs (Home und Breaker vorerst als Platzhalter), Icon-Grundlage, Header ohne „Jellycat Edition“
+- [ ] Task 2b: Emojis überall durch bunte Material Symbols ersetzen (Wunsch vom 05.10.)
 - [ ] Task 3: Home Teil 1: Motivation, Batterie-Übersicht, „Ich brauch was!“
 - [ ] Task 4: Home Teil 2: „Heute dran“ (Habits), Tipp des Tages
 

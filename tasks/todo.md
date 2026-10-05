@@ -54,7 +54,7 @@
 ## ✅ Checkpoint 0: Reparatur
 - [x] Build und Lint grün, App läuft wie vor dem 29.08., plus Onboarding
 - [x] Commit auf `feature/v6`
-- [ ] **Du entscheidest:** sofort nach `main` (live) oder mit dem Rest zusammen
+- [x] **Du entscheidest:** sofort nach `main` (live) → 05.10. live gestellt (`1c7396a`), dopamin-menu.vercel.app liefert den neuen Build aus
 
 ---
 
@@ -65,16 +65,36 @@
 **Beschreibung:** Fester Glas-Footer mit 5 Tabs (🏠 Home, 🍽️ Menü, 🧩 Breaker, 🩹 Hilfe, 🔋 Batterie) nach CLAUDE.md Abschnitt 1. Die alte Tab-Leiste oben entfällt. Standard-Tab ist `home`. Home und Breaker zeigen vorerst einen einfachen Platzhalter. Der Footer bleibt auch im Timer-Modus sichtbar.
 
 **Akzeptanzkriterien:**
-- [ ] Alle 5 Tabs schalten um, der aktive Tab ist erkennbar (Punkt oder Hintergrund)
-- [ ] Kein Inhalt verschwindet hinter dem Footer (Abstand unten ca. 80 px), Safe-Area auf dem iPhone beachtet
-- [ ] Buttons haben `aria-label` bzw. sichtbare Labels und `aria-current` beim aktiven Tab
+- [x] Alle 5 Tabs schalten um, der aktive Tab ist erkennbar (Punkt oder Hintergrund)
+- [x] Kein Inhalt verschwindet hinter dem Footer (Abstand unten ca. 80 px), Safe-Area auf dem iPhone beachtet
+- [x] Buttons haben `aria-label` bzw. sichtbare Labels und `aria-current` beim aktiven Tab
 
 **Prüfung:**
-- [ ] Browser: alle Tabs, Timer läuft und Footer bleibt sichtbar, Onboarding liegt über dem Footer
+- [x] Browser: alle Tabs, Timer läuft und Footer bleibt sichtbar, Onboarding liegt über dem Footer
 
 **Abhängigkeiten:** Task 1
 **Dateien:** `src/App.jsx`
 **Umfang:** S
+
+---
+
+### Task 2b: Emojis überall durch Icons ersetzen
+
+**Beschreibung:** Wunsch vom 05.10.: einheitliches Design mit bunten Google Material Symbols (Rounded, gefüllt) statt Emojis. Die Grundlage aus Task 2 wird genutzt (`ICON_NAMES`, `Icon`-Komponente, Schrift lädt nur gelistete Icons). Ersetzt werden die Emojis in Daten (Kategorien, Tipps, Batterien, Intervalle, Onboarding) und in der Oberfläche (Buttons, Überschriften, Hinweise). Die SVG-Tiere (Maskottchen, MiniAnimal) bleiben. Vor dem Start klären:
+- Was passiert mit **eigenen Inhalten** der Nutzer, etwa dem Emoji-Picker bei eigenen Tipps und den Emojis in selbst angelegten Menü-Einträgen? Vorschlag: Der Picker wird zum Icon-Picker, alte Emoji-Einträge werden weiter angezeigt.
+- **Emojis mitten im Satz**, z.B. „Du machst das toll! 💖“ oder „Streck dich wie ein Seestern 🌟“: Icon am Satzende oder ganz weglassen?
+
+**Akzeptanzkriterien:**
+- [ ] Keine Emojis mehr in fest eingebauten Texten und Daten (Prüfskript zählt 0, Ausnahmen dokumentiert)
+- [ ] Jedes Icon hat eine Farbe aus der App-Palette und daneben einen sichtbaren Text oder ein `aria-label`
+- [ ] Gespeicherte Nutzerdaten mit Emojis werden weiterhin korrekt angezeigt
+
+**Prüfung:**
+- [ ] Emoji-Zählskript; Browser: alle Tabs, Onboarding, Modals, Benachrichtigungen
+
+**Abhängigkeiten:** Task 2
+**Dateien:** `src/App.jsx`, `CLAUDE.md` (Design-System: Icons statt Emojis; `BREAKER_CATS` mit Icon-Namen)
+**Umfang:** M (eine Datei, aber ca. 150 Stellen; ggf. in 2 Commits teilen: Daten / Oberfläche)
 
 ---
 

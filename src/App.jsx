@@ -85,6 +85,25 @@ function buildNotifications(habits,settings){
 /* ═══ STORAGE ═══ */
 const SK="dopamin_menu_v5";const ld=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};const sv=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};const defI=()=>{const it={};Object.values(CATEGORIES).forEach(c=>{it[c.key]=[...c.defaults];});return it;};
 
+/* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
+// Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
+// Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
+const ICON_NAMES=["battery_charging_full","check_circle","extension","healing","home","local_fire_department","notifications","restaurant","star"];
+const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
+// Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
+const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
+
+/* ═══ FOOTER-TABS ═══ */
+// Reihenfolge = Reihenfolge im Footer.
+// "icon" = Material-Symbol-Name, "iconColor" = Farbe des Icons, "bg" = Hintergrund hinter dem Icon, wenn der Tab aktiv ist.
+const TABS=[
+  {id:"home",icon:"home",label:"Home",iconColor:"#9B6FCF",bg:"#EDE0F7"},
+  {id:"menu",icon:"restaurant",label:"Menü",iconColor:"#E8876F",bg:"#FFE0DA"},
+  {id:"breaker",icon:"extension",label:"Breaker",iconColor:"#D9709A",bg:"#FDE2EA"},
+  {id:"hilfe",icon:"healing",label:"Hilfe",iconColor:"#5BA3C0",bg:"#D6EEFB"},
+  {id:"batterie",icon:"battery_charging_full",label:"Batterie",iconColor:"#4FA97F",bg:"#DFF5EA"},
+];
+
 /* ═══ APP ═══ */
 const ONBOARDING_DATA = {
   struggles: [
@@ -119,7 +138,7 @@ export default function DopaminMenu(){
   const[habits,setHabits]=useState(st?.habits||[]);const[customTips,setCustomTips]=useState(st?.customTips||{});const[catOrder,setCatOrder]=useState(st?.catOrder||BAT_CATS.map(c=>c.id));
   const[notifSettings,setNotifSettings]=useState(st?.notifSettings||{dailyTip:false,dailyMenu:false});
   const[activeTimer,setActiveTimer]=useState(null);const[showAdd,setShowAdd]=useState(null);const[nn,setNN]=useState("");const[nd,setND]=useState("");
-  const[celebration,setCelebration]=useState(false);const[randomPick,setRandomPick]=useState(null);const[tab,setTab]=useState("menu");const[timerOn,setTimerOn]=useState(false);
+  const[celebration,setCelebration]=useState(false);const[randomPick,setRandomPick]=useState(null);const[tab,setTab]=useState("home");const[timerOn,setTimerOn]=useState(false);
   const[openProb,setOpenProb]=useState(null);const[showSci,setShowSci]=useState(null);const[addTipFor,setAddTipFor]=useState(null);const[tIcon,setTIcon]=useState("💡");const[tTitle,setTTitle]=useState("");const[tText,setTText]=useState("");
   const[openCat,setOpenCat]=useState(null);const[showHF,setShowHF]=useState(false);const[hN,setHN]=useState("");const[hW,setHW]=useState(1);const[hInt,setHInt]=useState("weekly");const[hRemind,setHRemind]=useState("overdue");
   const[checkAnim,setCheckAnim]=useState(null);const[dragId,setDragId]=useState(null);
@@ -201,6 +220,8 @@ export default function DopaminMenu(){
   const checkIn=hid=>{setHabits(p=>p.map(h=>h.id===hid?{...h,lastDone:new Date().toISOString()}:h));setCheckAnim(hid);setTimeout(()=>setCheckAnim(null),800);setStars(s=>s+1);};
   const rmH=hid=>{setHabits(p=>p.filter(h=>h.id!==hid));};
   const goToHelp=hid=>{setTab("hilfe");setOpenProb(hid);setOpenCat(null);setShowNotifs(false);};
+  // Tab wechseln und offene Detailansichten schließen (Footer-Navigation)
+  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);};
 
   const cfgCats=catOrder.filter(cid=>habitsFor(cid).length>0);
   const avgBat=cfgCats.length?Math.round(cfgCats.reduce((s,cid)=>s+calcBat(habitsFor(cid)),0)/cfgCats.length):null;
@@ -219,7 +240,7 @@ export default function DopaminMenu(){
 
   return(
     <div style={S.wrap}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0}@keyframes wiggle{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes nod{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes bounce{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(.95)}}@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-120px) rotate(720deg);opacity:0}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}@keyframes slideIn{0%{transform:translateX(50px);opacity:0}100%{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}@keyframes checkPop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}@media(min-width:768px){.tablet-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}.bat-grid-t{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}}`}</style>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');@import url('${ICON_URL}');*{box-sizing:border-box;margin:0;padding:0}@keyframes wiggle{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes nod{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes bounce{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(.95)}}@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-120px) rotate(720deg);opacity:0}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}@keyframes slideIn{0%{transform:translateX(50px);opacity:0}100%{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}@keyframes checkPop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}@media(min-width:768px){.tablet-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}.bat-grid-t{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}}`}</style>
 
       {/* ONBOARDING */}
       {!onboardingComplete && (
@@ -309,15 +330,15 @@ export default function DopaminMenu(){
 
 
       {/* HEADER */}
-      <div style={S.hdr}><div style={S.hdrTop}><div style={{animation:"float 3s ease-in-out infinite"}}><Octopus size={34}/></div><div><h1 style={S.title}>Dopamin-Menü</h1><p style={S.sub}>🧸 Jellycat Edition</p></div><div style={{animation:"float 3s ease-in-out infinite 1s"}}><Fox size={34}/></div></div>
+      <div style={S.hdr}><div style={S.hdrTop}><div style={{animation:"float 3s ease-in-out infinite"}}><Octopus size={34}/></div><div><h1 style={S.title}>Dopamin-Menü</h1></div><div style={{animation:"float 3s ease-in-out infinite 1s"}}><Fox size={34}/></div></div>
         <div style={S.stats}>
-          <div style={S.stat}>⭐<span style={S.statN}>{stars}</span><span style={S.statL}>Sterne</span></div>
-          <div style={S.stat}>🔥<span style={S.statN}>{streak}</span><span style={S.statL}>Streak</span></div>
-          <div style={S.stat}>✅<span style={S.statN}>{doneToday}</span><span style={S.statL}>Heute</span></div>
-          {avgBat!==null&&<div style={{...S.stat,borderLeft:`3px solid ${getBatColor(avgBat)}`}}>🔋<span style={{...S.statN,color:getBatColor(avgBat)}}>{avgBat}%</span><span style={S.statL}>Energie</span></div>}
+          <div style={S.stat}><Icon name="star" color="#E8A820" size={17}/><span style={S.statN}>{stars}</span><span style={S.statL}>Sterne</span></div>
+          <div style={S.stat}><Icon name="local_fire_department" color="#F07A4A" size={17}/><span style={S.statN}>{streak}</span><span style={S.statL}>Streak</span></div>
+          <div style={S.stat}><Icon name="check_circle" color="#5EC269" size={17}/><span style={S.statN}>{doneToday}</span><span style={S.statL}>Heute</span></div>
+          {avgBat!==null&&<div style={{...S.stat,borderLeft:`3px solid ${getBatColor(avgBat)}`}}><Icon name="battery_charging_full" color={getBatColor(avgBat)} size={17}/><span style={{...S.statN,color:getBatColor(avgBat)}}>{avgBat}%</span><span style={S.statL}>Energie</span></div>}
           {/* notif bell */}
-          <button style={{...S.stat,cursor:"pointer",border:"none",position:"relative"}} onClick={()=>{setShowNotifs(!showNotifs);setShowNotifSettings(false);requestNotifPermission();}}>
-            🔔{urgentNotifs.length>0&&<span style={S.notifBadge}>{urgentNotifs.length}</span>}
+          <button style={{...S.stat,cursor:"pointer",border:"none",position:"relative"}} aria-label="Benachrichtigungen" onClick={()=>{setShowNotifs(!showNotifs);setShowNotifSettings(false);requestNotifPermission();}}>
+            <Icon name="notifications" color="#9B6FCF" size={18}/>{urgentNotifs.length>0&&<span style={S.notifBadge}>{urgentNotifs.length}</span>}
           </button>
         </div>
       </div>
@@ -344,8 +365,6 @@ export default function DopaminMenu(){
         </div>))}
       </div>}
 
-      {/* TABS */}
-      {!timerOn&&<div style={S.tabBar}>{[["menu","🍽️ Menü"],["hilfe","🩹 Hilfe"],["batterie","🔋 Batterie"]].map(([k,l])=>(<button key={k} style={{...S.tabBtn,...(tab===k?S.tabAct[k]:{})}} onClick={()=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);}}>{l}</button>))}</div>}
       {tab==="menu"&&!timerOn&&<button style={S.rndBtn} onClick={pickR}>🎲 Ich brauch was!</button>}
 
       {/* MODALS */}
@@ -378,6 +397,12 @@ export default function DopaminMenu(){
           {addTipFor===pr.id?(<div style={{background:"#fff",borderRadius:16,border:`2.5px solid ${pr.color}`,padding:14,marginTop:10,animation:"fadeIn .2s ease-out"}}><label style={S.fL}>Emoji:</label><div style={{display:"flex",flexWrap:"wrap",gap:3}}>{EMOJIS.map(e=>(<button key={e} style={{width:32,height:32,borderRadius:7,border:`2px solid ${tIcon===e?pr.color:"transparent"}`,fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",background:tIcon===e?pr.colorLight:"transparent"}} onClick={()=>setTIcon(e)}>{e}</button>))}</div><input style={{...S.inp,borderColor:pr.color,marginTop:6}} placeholder="Titel" value={tTitle} onChange={e=>setTTitle(e.target.value)} autoFocus/><textarea style={{...S.inp,borderColor:pr.color,marginTop:5,minHeight:50,resize:"vertical"}} placeholder="Was hilft dir?" value={tText} onChange={e=>setTText(e.target.value)}/><div style={{display:"flex",gap:6,marginTop:6}}><button style={{...S.ab,background:pr.color,color:"#fff",flex:1,padding:"9px 0"}} onClick={()=>addCT(pr.id)}>OK</button><button style={{...S.ab,background:"#E8E0D8",color:"#888",flex:1,padding:"9px 0"}} onClick={()=>{setAddTipFor(null);setTTitle("");setTText("");}}>×</button></div></div>):(<button style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",padding:"10px",borderRadius:14,border:`2.5px dashed ${pr.color}`,background:"#fff",fontSize:13,fontWeight:600,fontFamily:"Fredoka,sans-serif",cursor:"pointer",marginTop:10,color:pr.colorDark}} onClick={()=>setAddTipFor(pr.id)}>+ Eigenen Tipp</button>)}
         </div>);})()}</div>}
 
+      {/* ═══ HOME (Platzhalter, wird in Task 3+4 gebaut) ═══ */}
+      {tab==="home"&&!timerOn&&<div style={S.soon}><Octopus size={56} animate/><p>Hier entsteht deine Startseite 🏠</p></div>}
+
+      {/* ═══ BREAKER (Platzhalter, wird ab Task 6 gebaut) ═══ */}
+      {tab==="breaker"&&!timerOn&&<div style={S.soon}><Caterpillar size={56} animate/><p>Der Breaker kommt bald 🧩</p></div>}
+
       {/* ═══ BATTERIE ═══ */}
       {tab==="batterie"&&!timerOn&&<div style={{padding:"4px 16px"}}>
         <div style={S.hI}><Fox size={40} animate/><p style={{fontSize:12,color:"#5B4A6A",fontWeight:500,lineHeight:1.4}}>Deine Energie-Batterien. Halte gedrückt & ziehe zum Sortieren. 🔋</p></div>
@@ -401,13 +426,23 @@ export default function DopaminMenu(){
       </div>}
 
       <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,padding:"20px 0 4px"}}><Caterpillar size={22}/><span style={{fontSize:10.5,color:"#9B8AAE",fontWeight:500}}>Du machst das toll! 💖</span><Octopus size={22}/></div>
+
+      {/* ═══ FOOTER-NAVIGATION (Glasoptik, bleibt auch im Timer sichtbar) ═══ */}
+      <nav style={S.footer} aria-label="Hauptnavigation">
+        {TABS.map(t=>{const act=tab===t.id;return(
+          <button key={t.id} style={S.footBtn} onClick={()=>goTab(t.id)} aria-current={act?"page":undefined}>
+            <span style={{...S.footIcon,background:act?t.bg:"transparent",opacity:act?1:.6}}><Icon name={t.icon} color={t.iconColor} size={22}/></span>
+            <span style={{...S.footLbl,color:act?"#5B4A6A":"#9B8AAE"}}>{t.label}</span>
+          </button>
+        );})}
+      </nav>
     </div>
   );
 }
 
 /* ═══ STYLES ═══ */
 const S={
-  wrap:{fontFamily:"'Fredoka',sans-serif",background:"linear-gradient(180deg,#FFF5E4,#FFF0F5 50%,#F0F5FF)",minHeight:"100vh",padding:"0 0 40px",position:"relative",overflowX:"hidden",maxWidth:900,margin:"0 auto"},
+  wrap:{fontFamily:"'Fredoka',sans-serif",background:"linear-gradient(180deg,#FFF5E4,#FFF0F5 50%,#F0F5FF)",minHeight:"100vh",padding:"0 0 calc(84px + env(safe-area-inset-bottom))",position:"relative",overflowX:"hidden",maxWidth:900,margin:"0 auto"},
   hdr:{textAlign:"center",padding:"18px 20px 9px",background:"linear-gradient(180deg,#FFFAF0,transparent)"},hdrTop:{display:"flex",alignItems:"center",justifyContent:"center",gap:9},
   title:{fontSize:23,fontWeight:700,color:"#5B4A6A",letterSpacing:"-.5px"},sub:{fontSize:11,color:"#9B8AAE",fontWeight:500,marginTop:1},
   stats:{display:"flex",justifyContent:"center",gap:7,marginTop:9,flexWrap:"wrap"},stat:{background:"#fff",borderRadius:16,padding:"4px 10px",display:"flex",alignItems:"center",gap:4,boxShadow:"0 2px 10px rgba(180,160,200,.13)",fontSize:13},statN:{fontWeight:700,fontSize:14,color:"#5B4A6A"},statL:{fontSize:9,color:"#9B8AAE",fontWeight:500},
@@ -418,9 +453,12 @@ const S={
   notifToggle:{display:"flex",alignItems:"center",gap:8,fontSize:12,fontWeight:500,color:"#5B4A6A",padding:"4px 0",cursor:"pointer"},
   notifItem:{background:"#FAFAFA",borderRadius:12,padding:"10px 12px",marginBottom:6,borderLeft:"4px solid",display:"flex",alignItems:"center",gap:8},
   notifAction:{border:"none",borderRadius:10,padding:"5px 12px",fontSize:11,fontWeight:600,fontFamily:"Fredoka,sans-serif",cursor:"pointer",color:"#fff",flexShrink:0},
-  tabBar:{display:"flex",gap:4,margin:"8px 16px 2px",background:"#fff",borderRadius:15,padding:3,boxShadow:"0 2px 10px rgba(180,160,200,.12)"},
-  tabBtn:{flex:1,border:"none",borderRadius:12,padding:"8px 0",fontSize:12,fontWeight:600,fontFamily:"'Fredoka',sans-serif",cursor:"pointer",background:"transparent",color:"#9B8AAE",transition:"all .2s"},
-  tabAct:{menu:{background:"linear-gradient(135deg,#EDE0F7,#FFE0DA)",color:"#5B4A6A"},hilfe:{background:"linear-gradient(135deg,#D6EEFB,#DFF5EA)",color:"#5B4A6A"},batterie:{background:"linear-gradient(135deg,#DFF5EA,#FFF0D6)",color:"#5B4A6A"}},
+  // Footer: fest unten, so breit wie der Wrapper (max. 900px), Glasoptik
+  footer:{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:900,display:"flex",justifyContent:"space-around",alignItems:"center",minHeight:64,padding:"4px 6px calc(4px + env(safe-area-inset-bottom))",background:"rgba(255,245,228,.75)",backdropFilter:"blur(16px) saturate(180%)",WebkitBackdropFilter:"blur(16px) saturate(180%)",borderTop:"1px solid rgba(200,168,233,.2)",zIndex:60},
+  footBtn:{flex:1,maxWidth:96,minHeight:52,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,border:"none",background:"none",cursor:"pointer",fontFamily:"'Fredoka',sans-serif",padding:0},
+  footIcon:{display:"flex",padding:"4px 14px",borderRadius:14,transition:"background .2s, opacity .2s"},
+  footLbl:{fontSize:10,fontWeight:600,transition:"color .2s"},
+  soon:{display:"flex",flexDirection:"column",alignItems:"center",gap:10,padding:"40px 16px",fontSize:14,fontWeight:600,color:"#9B8AAE",textAlign:"center"},
   rndBtn:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,margin:"8px auto 4px",padding:"9px 22px",borderRadius:50,border:"2.5px solid #E8D0F0",background:"linear-gradient(135deg,#F5E6FF,#FFE0DA 50%,#DFF5EA)",fontSize:13.5,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer",boxShadow:"0 3px 16px rgba(200,168,233,.2)"},
   cats:{padding:"4px 16px",display:"flex",flexDirection:"column",gap:16},cH:{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",borderRadius:16,marginBottom:6},
   gr:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(145px,1fr))",gap:8},
@@ -456,5 +494,5 @@ const S={
   obNav:{display:"flex",justifyContent:"space-between",marginTop:10},
   obBack:{background:"none",border:"none",color:"#9B8AAE",fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"Fredoka,sans-serif"},
   obNext:{background:"#C8A8E9",border:"none",borderRadius:16,padding:"12px 32px",color:"#fff",fontSize:15,fontWeight:700,cursor:"pointer",fontFamily:"Fredoka,sans-serif",boxShadow:"0 4px 12px rgba(200,168,233,.3)"},
-  hint:{position:"fixed",bottom:80,left:20,right:20,background:"#5B4A6A",color:"#fff",padding:"12px 20px",borderRadius:16,fontSize:13,fontWeight:600,textAlign:"center",zIndex:1000,animation:"fadeIn .4s ease-out"},
+  hint:{position:"fixed",bottom:"calc(84px + env(safe-area-inset-bottom))",left:20,right:20,background:"#5B4A6A",color:"#fff",padding:"12px 20px",borderRadius:16,fontSize:13,fontWeight:600,textAlign:"center",zIndex:1000,animation:"fadeIn .4s ease-out"},
 };
