@@ -54,10 +54,10 @@ Vier Dinge in dieser Reihenfolge:
 - [x] Task 5: Terminplanung als Funktion und Prüfskript
 - [x] Task 6: Rauskippen: Schnelleingabe und Meilenstein-Liste
 - [x] Task 7: Fragebogen Pflichtteil: Kategorie und Schritte mit Terminen
-- [ ] Task 8: Schritt-Ansicht: abhaken, bearbeiten, verschieben, Abschluss-Feier
+- [x] Task 8: Schritt-Ansicht: abhaken, bearbeiten, verschieben, Abschluss-Feier
 
 ### Checkpoint 2: Kernablauf
-- [ ] Rauskippen → Zerlegen → Abhaken → Feier funktioniert durchgehend und überlebt ein Neuladen der Seite
+- [x] Rauskippen → Zerlegen → Abhaken → Feier funktioniert durchgehend und überlebt ein Neuladen der Seite
 
 ### Phase 3: Breaker-Feinschliff
 - [ ] Task 9: Optionale Fragen: Warum, erster Schritt, Frist-Typ, Belohnung

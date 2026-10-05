@@ -150,7 +150,7 @@ const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
-const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","record_voice_over","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
+const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
 const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
 // Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
 const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
@@ -318,6 +318,29 @@ export default function DopaminMenu(){
   const finishBreak=()=>{const steps=draft.steps.filter(s=>s.text.trim()).map(s=>({...s,text:s.text.trim()}));if(!steps.length)return;
     setTasks(p=>p.map(t=>t.id===bkOpen?{...t,name:draft.name.trim()||t.name,deadline:draft.deadline||null,category:draft.category,steps:planDue(steps,draft.deadline||null,todayYmd)}:t));
     setDraft(null);};
+  // ── Schritt-Ansicht ──
+  const updTask=(id,fn)=>setTasks(p=>p.map(t=>t.id===id?fn(t):t));
+  // Ein Schritt zählt wie eine Menü-Aktivität: +1 Stern, "Heute" +1, hält die Streak am Leben
+  const stepCredit=()=>{setStars(s=>s+1);setDoneToday(c=>c+1);const d=new Date().toDateString();if(lastDate!==d){setStreak(s=>s+1);setLastDate(d);}};
+  // Sind alle Schritte erledigt? -> Meilenstein abschließen, +5 Bonus-Sterne, Feier (mit Belohnung, falls gesetzt)
+  const finishIfDone=t=>{if(t.completed||!t.steps.length||t.steps.some(s=>!s.done))return t;
+    setStars(s=>s+5);setCelebration({title:t.name,bonus:5,reward:t.reward});setTimeout(()=>setCelebration(false),4500);setBkOpen(null);
+    return{...t,completed:new Date().toISOString()};};
+  // Abhaken gibt sofort einen Stern; Rückgängig nimmt ihn wieder weg (sonst könnte man Sterne "farmen")
+  const toggleStep=(tid,sid)=>{const t=tasks.find(x=>x.id===tid);const s=t?.steps.find(x=>x.id===sid);if(!s)return;
+    if(!s.done){stepCredit();setCheckAnim(sid);setTimeout(()=>setCheckAnim(null),800);}
+    else{setStars(n=>Math.max(0,n-1));setDoneToday(c=>Math.max(0,c-1));}
+    // finishIfDone bewusst AUSSERHALB von setTasks aufrufen: React kann Updater doppelt ausführen (StrictMode) -> sonst doppelte Bonus-Sterne
+    const next=finishIfDone({...t,steps:t.steps.map(x=>x.id===sid?{...x,done:!x.done}:x),lastProgress:s.done?t.lastProgress:new Date().toISOString()});
+    updTask(tid,()=>next);};
+  const editStep=(tid,sid,patch)=>updTask(tid,t=>({...t,steps:t.steps.map(s=>s.id===sid?{...s,...patch}:s)}));
+  // "+1 Tag": vom Termin aus (oder von heute, falls der Termin schon vorbei ist)
+  const pushStep=(tid,s)=>editStep(tid,s.id,{due:addDays(s.due&&s.due>todayYmd?s.due:todayYmd,1),dueManual:true});
+  const rmStep=(tid,sid)=>{const t=tasks.find(x=>x.id===tid);if(!t)return;const next=finishIfDone({...t,steps:t.steps.filter(s=>s.id!==sid)});updTask(tid,()=>next);};
+  const addStep=tid=>updTask(tid,t=>({...t,steps:planDue([...t.steps,{id:"c"+Date.now(),text:"",done:false,custom:true,due:null,dueManual:false}],t.deadline,todayYmd)}));
+  // Neue Frist -> offene Schritte neu verteilen (von Hand gesetzte bleiben)
+  const setTaskDeadline=(tid,dl)=>updTask(tid,t=>({...t,deadline:dl||null,steps:planDue(t.steps,dl||null,todayYmd)}));
+
   const unplanned=tasks.filter(t=>!t.steps.length).sort(byDeadline);
   const planned=tasks.filter(t=>t.steps.length&&!t.completed).sort(byDeadline);
   const doneTasks=tasks.filter(t=>t.completed).sort((a,b)=>a.completed<b.completed?1:-1).slice(0,5);
@@ -475,7 +498,7 @@ export default function DopaminMenu(){
 
       {/* MODALS */}
       {randomPick&&<div style={S.ov} onClick={()=>setRandomPick(null)}><div style={S.modal} onClick={e=>e.stopPropagation()}><p style={{fontSize:12,color:"#9B8AAE",marginBottom:7}}>Dein Gehirn bekommt...</p>{(()=>{const M=Mascots[randomPick.catKey];return<M size={62} animate/>;})()}<h3 style={{fontSize:18,fontWeight:700,marginTop:4,color:CATEGORIES[randomPick.catKey].colorDark}}>{randomPick.item.name}</h3><p style={{fontSize:12,color:"#6B5F7F",margin:"3px 0"}}>{randomPick.item.desc}</p><div style={{display:"flex",gap:8,marginTop:12}}><button style={{...S.modBtn,background:CATEGORIES[randomPick.catKey].color}} onClick={()=>{startTm(randomPick.catKey,randomPick.item);setRandomPick(null);}}>Los!</button><button style={{...S.modBtn,background:"#E8E0D8",color:"#666"}} onClick={()=>{setRandomPick(null);pickR();}}><Icon name="casino" size={15} style={{verticalAlign:"-3px",marginRight:4}}/>Nochmal</button></div></div></div>}
-      {celebration&&<div style={S.celeb}><div style={{animation:"pop .5s ease-out"}}><p style={{fontSize:24,fontWeight:700,color:"#5B4A6A"}}>Geschafft!</p><div style={{display:"flex",gap:4,justifyContent:"center",margin:"10px 0"}}>{[...Array(5)].map((_,i)=><div key={i} style={{animation:`pop .3s ease-out ${i*.1}s both`}}><Star filled size={28}/></div>)}</div><p style={{fontSize:14,color:"#9B6FCF",fontWeight:600}}>+1 <Icon name="star" color="#E8A820" size={16} style={{verticalAlign:"-3px"}}/> für dich!</p></div></div>}
+      {celebration&&<div style={S.celeb} role="status" onClick={()=>setCelebration(false)}><div style={{animation:"pop .5s ease-out",textAlign:"center",padding:16}}><p style={{fontSize:24,fontWeight:700,color:"#5B4A6A"}}>Geschafft!</p>{celebration.title&&<p style={{fontSize:15,fontWeight:600,color:"#5B4A6A",marginTop:4,overflowWrap:"anywhere"}}>„{celebration.title}“ ist erledigt</p>}<div style={{display:"flex",gap:4,justifyContent:"center",margin:"10px 0"}}>{[...Array(5)].map((_,i)=><div key={i} style={{animation:`pop .3s ease-out ${i*.1}s both`}}><Star filled size={28}/></div>)}</div><p style={{fontSize:14,color:"#9B6FCF",fontWeight:600}}>+{celebration.bonus||1} <Icon name="star" color="#E8A820" size={16} style={{verticalAlign:"-3px"}}/> {celebration.bonus?"Bonus ":""}für dich!</p>{celebration.reward&&<p style={{fontSize:15,fontWeight:700,color:"#A83D61",marginTop:8,overflowWrap:"anywhere"}}>Du hast dir „{celebration.reward}“ verdient!</p>}</div></div>}
       {timerOn&&activeTimer&&<div style={{...S.tmV,background:CATEGORIES[activeTimer.category].colorLight}}><div style={{animation:"float 2.5s ease-in-out infinite"}}>{(()=>{const M=Mascots[activeTimer.category];return<M size={86} animate={activeTimer.remaining>0}/>;})()}</div><h2 style={{fontSize:19,fontWeight:700,color:CATEGORIES[activeTimer.category].colorDark}}>{activeTimer.item.name}</h2><p style={{fontSize:12,color:"#6B5F7F",marginBottom:4}}>{activeTimer.item.desc}</p><div style={S.tmR}><svg width="164" height="164" viewBox="0 0 164 164"><circle cx="82" cy="82" r="70" fill="none" stroke="#fff" strokeWidth="8" opacity=".5"/><circle cx="82" cy="82" r="70" fill="none" stroke={CATEGORIES[activeTimer.category].color} strokeWidth="8" strokeLinecap="round" strokeDasharray={2*Math.PI*70} strokeDashoffset={2*Math.PI*70*(1-prog)} transform="rotate(-90 82 82)" style={{transition:"stroke-dashoffset 1s linear"}}/></svg><div style={S.tmTx}>{activeTimer.remaining>0?<span style={{fontSize:32,fontWeight:700,color:CATEGORIES[activeTimer.category].colorDark}}>{fmt(activeTimer.remaining)}</span>:<Icon name="celebration" color={CATEGORIES[activeTimer.category].colorDark} size={44}/>}</div></div><button style={{background:"#fff",border:`2.5px solid ${CATEGORIES[activeTimer.category].colorDark}`,borderRadius:50,padding:"9px 22px",fontSize:13,fontWeight:600,fontFamily:"Fredoka,sans-serif",cursor:"pointer",color:CATEGORIES[activeTimer.category].colorDark,marginTop:4}} onClick={stopTm}>{activeTimer.remaining===0?"Zurück":"Abbrechen"}</button></div>}
 
       {/* ═══ MENÜ ═══ */}
@@ -604,12 +627,55 @@ export default function DopaminMenu(){
               <button style={{...S.bkNext,opacity:draft.steps.some(s=>s.text.trim())?1:.5}} disabled={!draft.steps.some(s=>s.text.trim())} onClick={finishBreak}><Icon name="extension" color="#fff" size={20}/>Fertig zerlegt</button>
             </div>}
           </div>
-        );})():bkOpen?(()=>{const ot=tasks.find(t=>t.id===bkOpen);return(
-          /* Schritt-Ansicht (Platzhalter mit Leseansicht, wird in Task 8 gebaut) */
-          <div><button style={S.bk} onClick={()=>setBkOpen(null)}>← Zurück</button>
-            {ot&&<div style={S.bkForm}><h2 style={S.bkH}>{ot.name}</h2>
-              <ol style={{paddingLeft:18,fontSize:13,color:"#5B4A6A",display:"flex",flexDirection:"column",gap:4}}>{ot.steps.map(s=><li key={s.id}>{s.text} <span style={{color:"#6B5F7F",fontSize:11}}>· {s.due?fmtDay(s.due):"ohne Termin"}{s.dueManual?" (von Hand)":""}</span></li>)}</ol>
-              <p style={{fontSize:11,color:"#6B5F7F"}}>Abhaken und Bearbeiten kommen im nächsten Schritt.</p></div>}
+        );})():bkOpen?(()=>{const ot=tasks.find(t=>t.id===bkOpen);if(!ot)return null;const c=BREAKER_CATS.find(x=>x.id===ot.category)||BREAKER_CATS[0];const nDone=ot.steps.filter(s=>s.done).length;return(
+          /* Stufe 3: Schritt-Ansicht – abhaken, bearbeiten, verschieben */
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <button style={{...S.bk,alignSelf:"flex-start"}} onClick={()=>{setBkOpen(null);setBkDel(null);}}>← Zurück</button>
+
+            {/* Kopf: Name und Frist direkt änderbar */}
+            <div style={S.bkForm}>
+              <input aria-label="Name des Meilensteins" style={S.bkTitleInp} value={ot.name} onChange={e=>updTask(ot.id,t=>({...t,name:e.target.value}))} onBlur={e=>{if(!e.target.value.trim())updTask(ot.id,t=>({...t,name:"Ohne Namen"}));}}/>
+              <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <span style={{...S.bkBadge,background:c.colorLight,color:c.colorDark}}><Icon name={c.icon} color={c.colorDark} size={13}/>{c.label}</span>
+                <label htmlFor="bks-date" style={{fontSize:12,fontWeight:600,color:"#5B4A6A"}}>Frist:</label>
+                <input id="bks-date" type="date" min={todayYmd} style={S.bkDateSm} value={ot.deadline||""} onChange={e=>setTaskDeadline(ot.id,e.target.value)}/>
+              </div>
+              <span style={{display:"flex",alignItems:"center",gap:8,fontSize:11.5,fontWeight:500,color:"#6B5F7F"}}>
+                <span style={{...S.miniBar,flex:1,width:"auto"}}><span style={{display:"block",height:"100%",width:`${nDone/ot.steps.length*100}%`,background:c.color,borderRadius:4,transition:"width .4s"}}/></span>
+                {nDone}/{ot.steps.length} Schritte
+              </span>
+              {ot.why&&<p style={{fontSize:12.5,color:"#5B4A6A",background:c.colorLight,borderRadius:12,padding:"8px 10px"}}><b>Warum:</b> {ot.why}</p>}
+              {ot.reward&&<p style={{fontSize:12.5,color:"#5B4A6A",display:"flex",alignItems:"center",gap:6}}><Icon name="redeem" color="#A83D61" size={18}/>Am Ziel wartet: <b>{ot.reward}</b></p>}
+            </div>
+
+            {/* Schritte */}
+            <ol style={{listStyle:"none",display:"flex",flexDirection:"column",gap:6}}>{ot.steps.map((s,i)=>{const late=!s.done&&s.due&&s.due<todayYmd;return(
+              <li key={s.id} style={{...S.homeCard,cursor:"default",alignItems:"flex-start",opacity:s.done?.65:1,animation:checkAnim===s.id?"checkPop .4s ease-out":"none"}}>
+                <button role="checkbox" aria-checked={s.done} aria-label={`Schritt ${i+1} erledigt`} style={{...S.bkCheck,borderColor:s.done?"#5EC269":c.color,background:s.done?"#5EC269":"#fff"}} onClick={()=>toggleStep(ot.id,s.id)}>{s.done&&<Icon name="check" color="#fff" size={18}/>}</button>
+                <div style={{flex:1,minWidth:0}}>
+                  <input aria-label={`Schritt ${i+1}`} style={{...S.bkStepInp,textDecoration:s.done?"line-through":"none"}} value={s.text} placeholder="Was ist zu tun?" autoFocus={!s.text} onChange={e=>editStep(ot.id,s.id,{text:e.target.value})}/>
+                  {!s.done&&<div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,flexWrap:"wrap"}}>
+                    <input type="date" aria-label={`Termin für Schritt ${i+1}`} style={{...S.bkDateSm,marginTop:0}} value={s.due||""} onChange={e=>editStep(ot.id,s.id,{due:e.target.value||null,dueManual:!!e.target.value})}/>
+                    {late&&<span style={{fontSize:10.5,fontWeight:600,color:"#B5402F"}}>überfällig</span>}
+                    <button style={{...S.bkBtn,padding:"3px 8px",fontSize:11}} aria-label={`Schritt ${i+1} um einen Tag verschieben`} onClick={()=>pushStep(ot.id,s)}>+1 Tag</button>
+                  </div>}
+                </div>
+                <button style={S.bkX} aria-label={`Schritt ${i+1} löschen`} onClick={()=>rmStep(ot.id,s.id)}><Icon name="close" color="#6B5F7F" size={18}/></button>
+              </li>
+            );})}</ol>
+            <button style={{...S.bkBtn,alignSelf:"flex-start",display:"flex",alignItems:"center",gap:4}} onClick={()=>addStep(ot.id)}><Icon name="add" color="#A83D61" size={16}/>Eigenen Schritt hinzufügen</button>
+            <p style={{fontSize:12,color:"#6B5F7F",textAlign:"center"}}>Du kannst jederzeit pausieren.</p>
+
+            {/* Meilenstein löschen, mit Rückfrage */}
+            {bkDel===ot.id?(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:12.5,color:"#5B4A6A"}}>Meilenstein wirklich löschen?</span>
+                <button style={{...S.bkBtn,background:"#FDE8E6",color:"#9E2F2F"}} onClick={()=>{rmTask(ot.id);setBkOpen(null);}}>Löschen</button>
+                <button style={{...S.bkBtn,background:"#F0EAF5",color:"#5B4A6A"}} onClick={()=>setBkDel(null)}>Abbrechen</button>
+              </div>
+            ):(
+              <button style={{...S.bk,alignSelf:"center",display:"flex",alignItems:"center",gap:4,color:"#6B5F7F",fontSize:12}} onClick={()=>setBkDel(ot.id)}><Icon name="delete" color="#6B5F7F" size={16}/>Meilenstein löschen</button>
+            )}
           </div>
         );})():(<>
           {/* Stufe 1: Rauskippen – nur Name und optionales Datum, Enter speichert sofort */}
@@ -747,6 +813,8 @@ const S={
   bkX:{display:"flex",alignItems:"center",justifyContent:"center",width:32,height:32,border:"none",background:"none",borderRadius:8,cursor:"pointer",flexShrink:0},
   bkBadge:{display:"inline-flex",alignItems:"center",gap:3,borderRadius:8,padding:"2px 8px",fontSize:10.5,fontWeight:600,flexShrink:0},
   bkH:{fontSize:17,fontWeight:700,color:"#5B4A6A"},
+  bkTitleInp:{border:"none",borderBottom:"2px solid #F0EAF5",padding:"2px 2px 4px",fontSize:18,fontWeight:700,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",width:"100%",background:"transparent"},
+  bkCheck:{width:30,height:30,borderRadius:10,border:"2.5px solid",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0,transition:"background .2s"},
   bkCats:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:6},
   bkChip:{display:"flex",alignItems:"center",gap:8,border:"2px solid",borderRadius:14,padding:"8px 10px",fontSize:13,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer"},
   bkNext:{display:"flex",alignItems:"center",justifyContent:"center",gap:6,border:"none",borderRadius:14,padding:"12px 20px",marginTop:6,background:"#B8476C",color:"#fff",fontSize:15,fontWeight:700,fontFamily:"'Fredoka',sans-serif",cursor:"pointer"},

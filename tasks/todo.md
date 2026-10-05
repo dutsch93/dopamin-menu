@@ -202,12 +202,12 @@
 **Beschreibung:** Liste der Schritte mit Checkbox (+1 ⭐), Text bearbeiten, „+1 Tag“ und Datumsfeld, ×, „+ Eigenen Schritt“. Wenn alles erledigt ist: Konfetti, +5 ⭐ und Abschlussnachricht; `completed` wird gesetzt, `lastProgress` wird bei jedem Abhaken aktualisiert.
 
 **Akzeptanzkriterien:**
-- [ ] Abhaken gibt genau +1 ⭐, und ein versehentliches Doppel-Tippen gibt nicht doppelt
-- [ ] Letzter Schritt → Feier mit +5 ⭐ (die vorhandene Feier zeigt „+1 ⭐“ und muss den Bonus korrekt anzeigen)
-- [ ] Der erledigte Meilenstein wandert in „Erledigt“
+- [x] Abhaken gibt genau +1 ⭐, und ein versehentliches Doppel-Tippen gibt nicht doppelt
+- [x] Letzter Schritt → Feier mit +5 ⭐ (die vorhandene Feier zeigt „+1 ⭐“ und muss den Bonus korrekt anzeigen)
+- [x] Der erledigte Meilenstein wandert in „Erledigt“
 
 **Prüfung:**
-- [ ] Browser: Sternezähler vor und nach dem Abhaken vergleichen, Neuladen
+- [x] Browser: Sternezähler vor und nach dem Abhaken vergleichen, Neuladen
 
 **Abhängigkeiten:** Task 7
 **Dateien:** `src/App.jsx`
@@ -216,8 +216,8 @@
 ---
 
 ## ✅ Checkpoint 2: Kernablauf
-- [ ] Rauskippen → Zerlegen → Abhaken → Feier funktioniert durchgehend auf Handybreite
-- [ ] Commit und Push auf `feature/v6`, gemeinsamer Test in der Vercel-Vorschau
+- [x] Rauskippen → Zerlegen → Abhaken → Feier funktioniert durchgehend auf Handybreite
+- [x] Commit und Push auf `feature/v6`, gemeinsamer Test in der Vercel-Vorschau
 
 ---
 
