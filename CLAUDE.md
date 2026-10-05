@@ -1,7 +1,7 @@
 # CLAUDE.md — Dopamin-Menü 🧸
 
 > Briefing für Coding-Tools (Cursor, Claude Code, Cline).
-> Dieses Dokument beschreibt den aktuellen Stand und die nächsten Änderungen.
+> Dieses Dokument beschreibt den aktuellen Stand (v6) und die Spezifikation der zuletzt umgesetzten Features.
 
 ---
 
@@ -17,11 +17,22 @@
 
 ---
 
-## Aktueller Stand (v5)
+## Aktueller Stand (v6, Oktober 2026)
 
-Die App hat aktuell **3 Tabs** im oberen Bereich:
+Die App hat **5 Tabs** in einem festen Glas-Footer: **Home** (Start) · **Menü** · **Breaker** · **Hilfe** · **Batterie**. Alle Symbole sind bunte Google Material Symbols, keine Emojis (siehe Design-System → Icons). Details zu Footer, Home und Breaker stehen unten unter „Spezifikation v6“.
 
-### 🍽️ Menü-Tab
+### Onboarding (beim ersten Start)
+- Vollbild-Overlay mit 3 Schritten: Was fällt schwer? (max. 3) → Wie viel Zeit? → Vorlieben
+- Wirkung: Hilfe-Kategorien nach den gewählten Problemen sortiert, Menü-Kategorien nach verfügbarer Zeit, Batterie-Reihenfolge nach Vorlieben, Start-Habits werden angelegt (wenn noch keine existieren)
+- Abschluss wird in einem eigenen localStorage-Key gespeichert: `onboarding_complete = "true"`. Das Profil liegt als `onboardingProfile` im Haupt-Speicher.
+
+### Home-Tab (Start)
+- Motivationstext nach Batterie-Durchschnitt, die 3 leersten Batterien, „Dein Fokus“ (fällige Habits + Breaker-Schritte mit „Erledigen“), „Ich brauch was!“, Tipp des Tages
+
+### Breaker-Tab
+- Meilensteine rauskippen → per Fragebogen in terminierte Schritte zerlegen → abhaken (Sterne, Streak, Feier mit Bonus und Belohnung)
+
+### Menü-Tab
 - 3 Kategorien: Appetizers (5 Min), Entrées (20 Min), Sides (10 Min)
 - Jede Kategorie hat ein Maskottchen: 🐙 Oktopus, 🦊 Fuchs, 🐛 Raupe
 - Karten mit Aktivitäten, eigene hinzufügbar
@@ -49,14 +60,22 @@ Die App hat aktuell **3 Tabs** im oberen Bereich:
 - Durchschnittliche Batterie im Header-Stat-Bereich
 
 ### Header
-- Dopamin-Menü Titel mit Oktopus + Fuchs Animation
-- Stats: ⭐ Sterne, 🔥 Streak, ✅ Heute, 🔋 Energie-Durchschnitt
-- 🔔 Notification-Bell mit Badge-Counter
+- Dopamin-Menü Titel mit Oktopus + Fuchs Animation (ohne Untertitel)
+- Stats als Icons: Sterne, Streak, Heute, Energie-Durchschnitt
+- Glocke mit Badge-Counter
 - Notification-Panel: Einstellungen (tägliche Tipps, Menü-Vorschläge), überfällige Habits
+
+### Barrierefreiheit (seit v6)
+- Textfarben mit Kontrast mind. 4,5:1 (eigene `getBatTextColor`, `colorDark`-Töne). Bekannte Altlast: das helle Grau-Lila `#9B8AAE` für Nebentexte erreicht nur ca. 2,9:1.
+- Icons dekorativ (`aria-hidden`), Buttons ohne Text haben `aria-label`
+- `prefers-reduced-motion` schaltet Animationen ab
+- Rückfragen (Löschen, Loslassen) direkt in der App, nie `window.confirm`
 
 ---
 
-## ÄNDERUNGEN — Was jetzt gebaut werden muss
+## Spezifikation v6 (umgesetzt am 05.10.2026)
+
+> Die folgenden Abschnitte waren der Auftrag für v6 und sind umgesetzt. Sie bleiben als Referenz für das gewünschte Verhalten stehen. Abweichungen und spätere Entscheidungen sind direkt im Text vermerkt. Herleitung des Breakers: `docs/ideas/breaker-meilensteine.md`, Umsetzungsplan: `tasks/plan.md`.
 
 > **Wichtig: Keine Emojis in der Oberfläche.** Die App nutzt seit Oktober 2026 bunte Google Material Symbols statt Emojis (siehe Design-System → Icons). Emojis in den Texten dieses Dokuments sind nur Platzhalter. In Buttons und Überschriften wird daraus ein passendes Icon. Steht ein Emoji am Ende eines Satzes (z.B. „Weiter so! 💪“), wird es weggelassen.
 
@@ -257,7 +276,8 @@ const BREAKER_CATS = [
 #### Ansicht 1: Meilenstein-Liste (Default wenn Tab geöffnet wird)
 - Oben die **Schnelleingabe**: Textfeld „Was steht an?" + optionales Datumsfeld (`<input type="date">`). Enter speichert und leert das Feld sofort für den nächsten Eintrag (Fokus bleibt im Textfeld).
 - Darunter **„🧩 Noch nicht zerlegt"**: ungeplante Meilensteine (ohne Schritte), nach Frist sortiert, ohne Datum ganz unten. Jede Karte hat den Button „Zerlegen →" und ein × zum Löschen (mit kurzer Rückfrage in der App).
-- Wenn ungeplante Meilensteine existieren: sanfter Hinweis „X Meilensteine warten noch aufs Zerlegen 🐢 – fang mit dem dringendsten an".
+- Ab **2** ungeplanten Meilensteinen (bei einem reicht die Liste selbst): sanfter Hinweis mit Schildkröte „X Meilensteine warten noch aufs Zerlegen. Fang mit dem dringendsten an – einer reicht für heute.“ + Button, der den dringendsten direkt zerlegt.
+- Alle drei Bereiche („Noch nicht zerlegt“, „In Arbeit“, „Erledigt“) haben dieselbe aufklappbare Überschrift mit Icon und Anzahl. Erledigte Meilensteine sind antippbar: Haken rausnehmen öffnet sie wieder (Schritt-Stern und 5 Bonus-Sterne werden dabei zurückgenommen).
 - Darunter **geplante Meilensteine**: Name + Kategorie-Badge + Frist + Fortschrittsbalken (z.B. „3/5 Schritte"), nach Frist sortiert.
 - Erledigte Meilensteine zusammengeklappt darunter (letzte 5, ausgeblendet).
 - Wenn keine Meilensteine: Empty State mit Raupe + „Was schwirrt dir im Kopf rum? Kipp's hier raus 🧩"
@@ -423,9 +443,14 @@ Alles in einem einzigen localStorage-Key: `dopamin_menu_v5`
   customTips: { problemId: [{ id, icon, title, text, custom }] },
   catOrder: ["natur", "bewegung", ...],
   notifSettings: { dailyTip: false, dailyMenu: false },
-  tasks: [{ id, name, deadline, deadlineType, category, why, reward, steps: [{id, text, done, custom, due, dueManual}], created, lastProgress, completed }]  // NEU
+  onboardingProfile: { struggles: ["start", ...], time: "15", preferences: ["bewegung", ...] },
+  tasks: [{ id, name, deadline, deadlineType, category, why, reward, steps: [{id, text, done, custom, due, dueManual}], created, lastProgress, completed }]
 }
 ```
+
+- Zusätzlicher Key: `onboarding_complete` (`"true"`, sobald das Onboarding abgeschlossen ist)
+- **Beim Laden:** `tasks` wird mit `cleanTasks()` geprüft (kaputte Einträge fallen weg, fehlende Felder werden aufgefüllt). Mitgelieferte Menü-Einträge werden mit `migI()` auf den aktuellen Text gebracht, eigene bleiben unverändert.
+- **Datumsfelder im Breaker** (`deadline`, `due`) sind lokale Kalendertage als `"YYYY-MM-DD"` (Hilfsfunktionen `ymd`, `addDays`, `daysBetween`). Nie `toISOString()` für Kalendertage verwenden, das rechnet in UTC.
 
 ---
 
@@ -442,10 +467,17 @@ dopamin-menu/
 │   ├── App.css           (leer)
 │   ├── index.css         (leer)
 │   └── main.jsx          (Vite-Standard, unverändert)
+├── docs/ideas/
+│   └── breaker-meilensteine.md  ← Herleitung des Breaker-Konzepts
+├── tasks/
+│   ├── plan.md           ← Umsetzungsplan v6 (Entscheidungen, Risiken)
+│   └── todo.md           ← Aufgaben mit Akzeptanzkriterien
 ├── index.html
 ├── package.json
 └── CLAUDE.md             ← dieses Dokument
 ```
+
+**Git:** Gearbeitet wird auf Feature-Branches (z.B. `feature/v6`). Ein Push auf einen Branch erzeugt eine geschützte Vercel-Vorschau (nur mit Vercel-Login sichtbar). Erst der Merge nach `main` geht live.
 
 **Wichtig:** Die gesamte App lebt in `src/App.jsx`. Kein Routing, keine separaten Komponenten-Dateien. Alles inline-styled mit einem `S`-Objekt am Ende der Datei. Das ist gewollt — hält die Komplexität niedrig für eine localStorage-only-App.
 

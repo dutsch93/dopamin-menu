@@ -65,7 +65,7 @@ Vier Dinge in dieser Reihenfolge:
 - [x] Task 11: Sanfte Hinweise: Frist vorbei, „Steckst du fest?“, „X warten aufs Zerlegen“
 
 ### Checkpoint 3: Fertig
-- [ ] Alle Akzeptanzkriterien erfüllt, CLAUDE.md auf Stand v6 (inkl. Onboarding)
+- [x] Alle Akzeptanzkriterien erfüllt, CLAUDE.md auf Stand v6 (inkl. Onboarding)
 - [ ] Merge nach `main` nach deinem OK
 
 ## Risiken und Gegenmaßnahmen
