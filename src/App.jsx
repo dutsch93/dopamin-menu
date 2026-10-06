@@ -140,10 +140,13 @@ function cleanTasks(raw){
   return raw.filter(t=>t&&typeof t.id==="string"&&typeof t.name==="string").map(t=>({
     id:t.id,name:t.name,deadline:isYmd(t.deadline)?t.deadline:null,deadlineType:t.deadlineType==="hard"||t.deadlineType==="soft"?t.deadlineType:null,
     category:BREAKER_CATS.some(c=>c.id===t.category)?t.category:null,why:typeof t.why==="string"?t.why:"",reward:typeof t.reward==="string"?t.reward:"",
+    batCat:BAT_CATS.some(c=>c.id===t.batCat)?t.batCat:null,batWeight:[1,2,3,4,5].includes(t.batWeight)?t.batWeight:2,
     steps:(Array.isArray(t.steps)?t.steps:[]).filter(s=>s&&typeof s.id==="string"&&typeof s.text==="string").map(s=>({id:s.id,text:s.text,done:!!s.done,custom:!!s.custom,due:isYmd(s.due)?s.due:null,dueManual:!!s.dueManual})),
     created:typeof t.created==="string"?t.created:new Date(0).toISOString(),lastProgress:typeof t.lastProgress==="string"?t.lastProgress:null,completed:typeof t.completed==="string"?t.completed:null,
   }));
 }
+// Welche Batterie passt zu welcher Breaker-Kategorie? (wird beim Zerlegen vorgeschlagen/vorausgewählt)
+const BREAKER_TO_BAT={sport:"bewegung",soziales:"sozial",kreatives:"kreativ",haushalt:"haushalt"};
 // Sortierung: früheste Frist zuerst, ohne Frist ganz unten, sonst nach Erstellung
 const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12-31";return x<y?-1:x>y?1:a.created<b.created?-1:1;};
 
@@ -295,6 +298,15 @@ export default function DopaminMenu(){
   const rmCT=(pid,tid)=>{setCustomTips(p=>({...p,[pid]:(p[pid]||[]).filter(t=>t.id!==tid)}));};
   const allTips=pid=>{const pr=SOFORTHILFE.find(p=>p.id===pid);return[...(pr?.tips||[]),...(customTips[pid]||[])];};
   const habitsFor=cid=>habits.filter(h=>h.category===cid);
+  // Batterie-Inhalt = Habits + verknüpfte, offene Meilensteine (v6.1).
+  // Ein Meilenstein zählt wie ein Habit: Gewicht batWeight, Intervall "Alle 2–3 Tage", "zuletzt erledigt" = letzter abgehakter Schritt.
+  const batTasks=cid=>tasks.filter(t=>t.batCat===cid&&!t.completed&&t.steps.length).map(t=>({id:"task_"+t.id,taskId:t.id,name:t.name,weight:t.batWeight||2,interval:"every2",lastDone:t.lastProgress}));
+  const batItems=cid=>[...habitsFor(cid),...batTasks(cid)];
+  const batPct=cid=>calcBat(batItems(cid));
+  // Anteil eines Meilensteins an der Batterie in % (wie "+X %" bei Habits). taskId: der Meilenstein selbst wird nicht doppelt gezählt.
+  const batShare=(cid,w,taskId)=>{const tw=batItems(cid).filter(x=>x.taskId!==taskId).reduce((s,x)=>s+(x.weight||1),0)+w;return Math.round(w/tw*100);};
+  // Ist der Anteil gerade geladen? (letzter Schritt vor weniger als 2–3 Tagen)
+  const batCharged=t=>!isOver(t.lastProgress,(INTERVALS.find(i=>i.id==="every2")||INTERVALS[1]).days);
   const addHabit=cid=>{if(!hN.trim())return;setHabits(p=>[...p,{id:"h_"+Date.now(),name:hN.trim(),category:cid,weight:hW,interval:hInt,remind:hRemind,lastDone:null}]);setHN("");setHW(1);setHInt("weekly");setHRemind("overdue");setShowHF(false);};
   const checkIn=hid=>{setHabits(p=>p.map(h=>h.id===hid?{...h,lastDone:new Date().toISOString()}:h));setCheckAnim(hid);setTimeout(()=>setCheckAnim(null),800);setStars(s=>s+1);};
   const rmH=hid=>{setHabits(p=>p.filter(h=>h.id!==hid));};
@@ -309,16 +321,19 @@ export default function DopaminMenu(){
   const rmTask=id=>{setTasks(p=>p.filter(t=>t.id!==id));setBkDel(null);};
 
   // Fragebogen ("Zerlegen →")
-  const startBreak=t=>{setBkOpen(t.id);setBkQ(1);setDraft({name:t.name,deadline:t.deadline||"",category:null,steps:[],why:"",first:"",deadlineType:null,reward:""});};
-  // Optionale Fragen (ab Bildschirm 3). "Echte Frist?" nur, wenn ein Datum gesetzt ist.
-  const bkOpt=draft?["why","first",...(draft.deadline?["dtype"]:[]),"reward"]:[];
+  const startBreak=t=>{setBkOpen(t.id);setBkQ(1);setDraft({name:t.name,deadline:t.deadline||"",category:null,steps:[],why:"",first:"",deadlineType:null,batCat:null,batWeight:2,reward:""});};
+  // Optionale Fragen (ab Bildschirm 3). "Echte Frist?" nur mit Datum, "Batterie?" nur, wenn es eingerichtete Batterien gibt.
+  const bkOpt=draft?["why","first",...(draft.deadline?["dtype"]:[]),...(habits.length?["battery"]:[]),"reward"]:[];
+  // Batterie-Verknüpfung: nur eingerichtete Batterien (mit Habits), die zur Breaker-Kategorie passende zuerst
+  const batChoices=cat=>{const m=BREAKER_TO_BAT[cat];const ids=catOrder.filter(cid=>habits.some(h=>h.category===cid));return[...ids].sort((a,b)=>(b===m)-(a===m));};
   const bkTotal=bkQ>2?2+bkOpt.length:2; // Fortschrittspunkte: optionale Fragen erst zeigen, wenn man sie beantworten will
   const bkNextQ=()=>setBkQ(q=>q+1);
   // Belohnungs-Vorschläge: Sides + Appetizers aus dem Menü (inkl. eigener Einträge), keine Entrées (= Deep Work)
   const rewardIdeas=[...(items.side||[]),...(items.appetizer||[])].map(i=>i.name);
   const closeBreak=()=>{setBkOpen(null);setDraft(null);};
   // Kategorie wählen -> Schritt-Vorlage einsetzen (nur wenn sich die Kategorie wirklich ändert)
-  const pickBkCat=cid=>setDraft(d=>d.category===cid?d:{...d,category:cid,steps:BREAKER_CATS.find(c=>c.id===cid).steps.map((text,i)=>({id:"s"+(i+1),text,done:false,custom:false,due:null,dueManual:false}))});
+  // Passende Batterie wird automatisch vorgemerkt (nur wenn sie eingerichtet ist), änderbar in der Batterie-Frage und in der Schritt-Ansicht
+  const pickBkCat=cid=>setDraft(d=>d.category===cid?d:{...d,category:cid,batCat:BREAKER_TO_BAT[cid]&&habits.some(h=>h.category===BREAKER_TO_BAT[cid])?BREAKER_TO_BAT[cid]:null,steps:BREAKER_CATS.find(c=>c.id===cid).steps.map((text,i)=>({id:"s"+(i+1),text,done:false,custom:false,due:null,dueManual:false}))});
   // Bei jedem Wechsel auf die Schritte werden die automatischen Termine neu verteilt (z.B. nach Änderung der Frist)
   const toBkSteps=()=>{setDraft(d=>({...d,steps:planDue(d.steps,d.deadline||null,todayYmd)}));setBkQ(2);};
   const updDraftStep=(sid,patch)=>setDraft(d=>({...d,steps:d.steps.map(s=>s.id===sid?{...s,...patch}:s)}));
@@ -331,7 +346,7 @@ export default function DopaminMenu(){
     if(d.first.trim())steps=[{id:"first",text:d.first.trim(),done:false,custom:true,due:null,dueManual:false},...steps];
     if(!steps.length)return;
     setTasks(p=>p.map(t=>t.id===bkOpen?{...t,name:d.name.trim()||t.name,deadline:d.deadline||null,category:d.category,steps:planDue(steps,d.deadline||null,todayYmd),
-      why:d.why.trim(),reward:d.reward.trim(),deadlineType:d.deadline?d.deadlineType:null}:t));
+      why:d.why.trim(),reward:d.reward.trim(),deadlineType:d.deadline?d.deadlineType:null,batCat:d.batCat||null,batWeight:d.batWeight||2}:t));
     setDraft(null);};
   // ── Schritt-Ansicht ──
   const updTask=(id,fn)=>setTasks(p=>p.map(t=>t.id===id?fn(t):t));
@@ -343,7 +358,9 @@ export default function DopaminMenu(){
     return{...t,completed:new Date().toISOString()};};
   // Abhaken gibt sofort einen Stern; Rückgängig nimmt ihn wieder weg (sonst könnte man Sterne "farmen")
   const toggleStep=(tid,sid)=>{const t=tasks.find(x=>x.id===tid);const s=t?.steps.find(x=>x.id===sid);if(!s)return;
-    if(!s.done){stepCredit();setCheckAnim(sid);setTimeout(()=>setCheckAnim(null),800);}
+    if(!s.done){stepCredit();setCheckAnim(sid);setTimeout(()=>setCheckAnim(null),800);
+      // Verknüpfte Batterie lädt automatisch: der Meilenstein zählt dort wie ein Habit, und lastProgress (unten) ist sein "zuletzt erledigt".
+    }
     // Rückgängig: Stern zurück. War der Meilenstein schon erledigt, wird er wieder geöffnet und der Bonus (5) ebenfalls abgezogen –
     // sonst gäbe es beim erneuten Abhaken den Bonus doppelt.
     else{setStars(n=>Math.max(0,n-1-(t.completed?5:0)));setDoneToday(c=>Math.max(0,c-1));}
@@ -391,16 +408,16 @@ export default function DopaminMenu(){
   const doneTasks=tasks.filter(t=>t.completed).sort((a,b)=>a.completed<b.completed?1:-1).slice(0,5);
 
   const cfgCats=catOrder.filter(cid=>habitsFor(cid).length>0);
-  const avgBat=cfgCats.length?Math.round(cfgCats.reduce((s,cid)=>s+calcBat(habitsFor(cid)),0)/cfgCats.length):null;
+  const avgBat=cfgCats.length?Math.round(cfgCats.reduce((s,cid)=>s+batPct(cid),0)/cfgCats.length):null;
   // Home: die 3 leersten Batterien
-  const lowBats=cfgCats.map(cid=>({cid,pct:calcBat(habitsFor(cid))})).sort((a,b)=>a.pct-b.pct).slice(0,3);
+  const lowBats=cfgCats.map(cid=>({cid,pct:batPct(cid)})).sort((a,b)=>a.pct-b.pct).slice(0,3);
   // Home: Habits, die in den nächsten 24 Std fällig oder schon überfällig sind (dringendste zuerst, max. 3)
   const dueHabits=habits.map(h=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];return{h,left:hoursUntilDue(h.lastDone,iv.days)};}).filter(x=>x.left<=24).sort((a,b)=>a.left-b.left).slice(0,3);
   // Home: Tipp des Tages (Datum wird beim Öffnen der App festgehalten)
   const[today]=useState(()=>new Date().toDateString());
   const dayTip=tipOfDay(today);
   const onDS=(e,id)=>{setDragId(id);e.dataTransfer.effectAllowed="move";};const onDO=e=>{e.preventDefault();};const onDr=(e,tid)=>{e.preventDefault();if(!dragId||dragId===tid)return;setCatOrder(p=>{const a=[...p],fi=a.indexOf(dragId),ti=a.indexOf(tid);a.splice(fi,1);a.splice(ti,0,dragId);return a;});setDragId(null);};
-  const getQT=cid=>{const cat=BAT_CATS.find(c=>c.id===cid);const ch=habitsFor(cid);const ov=ch.filter(h=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];return isOver(h.lastDone,iv.days);});const hp=SOFORTHILFE.find(p=>p.id===cat?.helpId);const tips=[];if(ov.length){const e=ov.reduce((a,b)=>(a.weight||1)<(b.weight||1)?a:b);const tw=ch.reduce((s,h)=>s+(h.weight||1),0);tips.push({icon:"bolt",title:"Schnellster Boost: "+e.name,text:`+${Math.round(((e.weight||1)/tw)*100)}%`,action:()=>checkIn(e.id)});}if(hp?.tips.length){const t=hp.tips[Math.floor(Math.random()*hp.tips.length)];tips.push({animal:hp.id,title:t.title,text:t.text,link:cat?.helpId});}tips.push({icon:"timer",title:"Nur 1 Minute",text:"Timer auf 60 Sek. Tu das Einfachste."});return tips.slice(0,3);};
+  const getQT=cid=>{const cat=BAT_CATS.find(c=>c.id===cid);const ch=habitsFor(cid);const ov=ch.filter(h=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];return isOver(h.lastDone,iv.days);});const hp=SOFORTHILFE.find(p=>p.id===cat?.helpId);const tips=[];if(ov.length){const e=ov.reduce((a,b)=>(a.weight||1)<(b.weight||1)?a:b);const tw=batItems(cid).reduce((s,h)=>s+(h.weight||1),0);tips.push({icon:"bolt",title:"Schnellster Boost: "+e.name,text:`+${Math.round(((e.weight||1)/tw)*100)}%`,action:()=>checkIn(e.id)});}if(hp?.tips.length){const t=hp.tips[Math.floor(Math.random()*hp.tips.length)];tips.push({animal:hp.id,title:t.title,text:t.text,link:cat?.helpId});}tips.push({icon:"timer",title:"Nur 1 Minute",text:"Timer auf 60 Sek. Tu das Einfachste."});return tips.slice(0,3);};
   const ordCfg=catOrder.filter(cid=>habitsFor(cid).length>0);const ordEmpty=catOrder.filter(cid=>habitsFor(cid).length===0);
   const urgentNotifs=notifications.filter(n=>n.type==="overdue"||n.type==="soon");
 
@@ -689,7 +706,7 @@ export default function DopaminMenu(){
             {/* Optionale Fragen – jede einzeln überspringbar, "Fertig zerlegt" jederzeit möglich */}
             {bkQ>2&&(()=>{const k=bkOpt[bkQ-3];const last=bkQ-2>=bkOpt.length;
               // Überspringen leert die Antwort dieser Frage; bei der letzten Frage wird direkt gespeichert
-              const skip=()=>{const clear=k==="why"?{why:""}:k==="first"?{first:""}:k==="dtype"?{deadlineType:null}:{reward:""};
+              const skip=()=>{const clear=k==="why"?{why:""}:k==="first"?{first:""}:k==="dtype"?{deadlineType:null}:k==="battery"?{batCat:null}:{reward:""};
                 if(last)finishBreak(clear);else{setDraft(d=>({...d,...clear}));bkNextQ();}};
               return(<div style={S.bkForm}>
                 {k==="why"&&<>
@@ -710,6 +727,27 @@ export default function DopaminMenu(){
                         <Icon name={ic} color="#A83D61" size={20}/><span style={{flex:1,textAlign:"left"}}>{l}<span style={{display:"block",fontSize:11,fontWeight:500,color:"#6B5F7F"}}>{sub}</span></span>
                       </button>);})}
                   </div>
+                </>}
+                {k==="battery"&&<>
+                  <p id="bkq-bat" style={S.bkH}>Lädt dieser Meilenstein eine deiner Batterien?</p>
+                  <p style={{fontSize:12,color:"#6B5F7F"}}>Der Meilenstein wird Teil der Batterie, wie ein Habit. Jeder abgehakte Schritt lädt seinen Anteil – ohne Fortschritt entlädt er sich nach 2–3 Tagen wieder. Nochmal antippen hebt die Auswahl auf.</p>
+                  <div role="group" aria-labelledby="bkq-bat" style={{display:"flex",flexDirection:"column",gap:6}}>{batChoices(draft.category).map(cid=>{const bc=BAT_CATS.find(c=>c.id===cid);const on=draft.batCat===cid;const p=batPct(cid);return(
+                    <button key={cid} aria-pressed={on} style={{...S.bkChip,borderColor:on?"#A83D61":bc.color,background:on?"#FCE4EA":"#fff"}} onClick={()=>setDraft(d=>({...d,batCat:on?null:cid}))}>
+                      <Icon name={bc.icon} color={bc.colorDark} size={20}/>
+                      <span style={{flex:1,textAlign:"left"}}>{bc.label}{BREAKER_TO_BAT[draft.category]===cid&&<span style={{display:"block",fontSize:11,fontWeight:500,color:"#6B5F7F"}}>passt zur Kategorie</span>}</span>
+                      <span style={S.miniBar}><span style={{display:"block",height:"100%",width:`${p}%`,background:getBatColor(p),borderRadius:4}}/></span>
+                      <span style={{width:36,textAlign:"right",color:getBatTextColor(p)}}>{p}%</span>
+                      {on&&<Icon name="check" color="#A83D61" size={16}/>}
+                    </button>);})}
+                  </div>
+                  {/* Wichtigkeit wie bei Habits: bestimmt den Anteil an der Batterie */}
+                  {draft.batCat&&(()=>{const bc=BAT_CATS.find(c=>c.id===draft.batCat);return(<>
+                    <p id="bkq-w" style={S.fL}>Wie stark lädt er die Batterie?</p>
+                    <div role="group" aria-labelledby="bkq-w" style={{display:"flex",gap:6,justifyContent:"center"}}>{[1,2,3,4,5].map(w=>(
+                      <button key={w} aria-pressed={draft.batWeight===w} style={{width:40,height:40,borderRadius:12,border:"none",fontSize:16,fontWeight:700,fontFamily:"Fredoka,sans-serif",cursor:"pointer",background:draft.batWeight===w?bc.colorDark:bc.colorLight,color:draft.batWeight===w?"#fff":bc.colorDark}} onClick={()=>setDraft(d=>({...d,batWeight:w}))}>{w}</button>))}
+                    </div>
+                    <p style={{fontSize:12.5,fontWeight:600,color:"#2E7D3A",textAlign:"center"}}>Ein abgehakter Schritt lädt {bc.label} um +{batShare(draft.batCat,draft.batWeight,bkOpen)} %</p>
+                  </>);})()}
                 </>}
                 {k==="reward"&&<>
                   <label htmlFor="bkq-reward" style={S.bkH}>Deine Belohnung</label>
@@ -779,6 +817,21 @@ export default function DopaminMenu(){
               </span>
               {ot.why&&<p style={{fontSize:12.5,color:"#5B4A6A",background:c.colorLight,borderRadius:12,padding:"8px 10px"}}><b>Warum:</b> {ot.why}</p>}
               {ot.reward&&<p style={{fontSize:12.5,color:"#5B4A6A",display:"flex",alignItems:"center",gap:6}}><Icon name="redeem" color="#A83D61" size={18}/>Am Ziel wartet: <b>{ot.reward}</b></p>}
+              {/* Batterie-Verknüpfung: jederzeit änderbar oder entfernbar */}
+              {habits.length>0&&<div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap",fontSize:12.5,color:"#5B4A6A"}}>
+                <Icon name="battery_charging_full" color="#4FA97F" size={18}/>
+                <label htmlFor="bks-bat" style={{fontWeight:600}}>Lädt Batterie:</label>
+                <select id="bks-bat" style={{...S.bkDateSm,marginTop:0,maxWidth:"100%"}} value={batChoices(ot.category).includes(ot.batCat)?ot.batCat:""} onChange={e=>updTask(ot.id,t=>({...t,batCat:e.target.value||null}))}>
+                  <option value="">– keine –</option>
+                  {batChoices(ot.category).map(cid=>{const bc=BAT_CATS.find(c=>c.id===cid);return<option key={cid} value={cid}>{bc.label} ({batPct(cid)} %)</option>;})}
+                </select>
+                {batChoices(ot.category).includes(ot.batCat)&&<>
+                  <label htmlFor="bks-w" style={{fontWeight:600}}>Stärke:</label>
+                  <select id="bks-w" style={{...S.bkDateSm,marginTop:0}} value={ot.batWeight||2} onChange={e=>updTask(ot.id,t=>({...t,batWeight:Number(e.target.value)}))}>{[1,2,3,4,5].map(w=><option key={w} value={w}>{w}</option>)}</select>
+                  <span style={{fontWeight:700,color:batCharged(ot)?"#2E7D3A":"#A83D61"}}>+{batShare(ot.batCat,ot.batWeight||2,ot.id)} %</span>
+                  <span style={{fontSize:11,fontWeight:500,color:"#6B5F7F",flexBasis:"100%"}}>{batCharged(ot)?"Gerade geladen – hält 2–3 Tage nach dem letzten Schritt.":"Lädt beim nächsten abgehakten Schritt."}</span>
+                </>}
+              </div>}
             </div>
 
             {/* Schritte */}
@@ -890,13 +943,23 @@ export default function DopaminMenu(){
       {tab==="batterie"&&!timerOn&&<div style={{padding:"4px 16px"}}>
         <div style={S.hI}><Fox size={40} animate/><p style={{fontSize:12,color:"#5B4A6A",fontWeight:500,lineHeight:1.4}}>Deine Energie-Batterien. Halte gedrückt & ziehe zum Sortieren.</p></div>
         {!openCat?(<>
-          {ordCfg.length>0&&<><h3 style={S.secT}>Meine Batterien</h3><div className="bat-grid-t" style={S.batGrid}>{ordCfg.map((cid,i)=>{const bc=BAT_CATS.find(c=>c.id===cid);const ch=habitsFor(cid);const pct=calcBat(ch);return(<button key={cid} draggable onDragStart={e=>onDS(e,cid)} onDragOver={onDO} onDrop={e=>onDr(e,cid)} style={{...S.batCard,borderColor:getBatColor(pct),opacity:dragId===cid?.5:1,animation:`fadeIn .3s ease-out ${i*.04}s both`}} onClick={()=>setOpenCat(cid)}><BatterySVG pct={pct} size={64}/><span style={{fontSize:11.5,fontWeight:600,textAlign:"center",color:getBatColor(pct)}}>{bc.label}</span>{pct<=40&&<span style={{fontSize:9,color:"#E86A5A",fontWeight:600,animation:"pulse 2s infinite"}}>Aufladen!</span>}</button>);})}</div></>}
+          {ordCfg.length>0&&<><h3 style={S.secT}>Meine Batterien</h3><div className="bat-grid-t" style={S.batGrid}>{ordCfg.map((cid,i)=>{const bc=BAT_CATS.find(c=>c.id===cid);const pct=batPct(cid);return(<button key={cid} draggable onDragStart={e=>onDS(e,cid)} onDragOver={onDO} onDrop={e=>onDr(e,cid)} style={{...S.batCard,borderColor:getBatColor(pct),opacity:dragId===cid?.5:1,animation:`fadeIn .3s ease-out ${i*.04}s both`}} onClick={()=>setOpenCat(cid)}><BatterySVG pct={pct} size={64}/><span style={{fontSize:11.5,fontWeight:600,textAlign:"center",color:getBatColor(pct)}}>{bc.label}</span>{pct<=40&&<span style={{fontSize:9,color:"#E86A5A",fontWeight:600,animation:"pulse 2s infinite"}}>Aufladen!</span>}</button>);})}</div></>}
           {ordEmpty.length>0&&<><h3 style={{...S.secT,marginTop:ordCfg.length?16:0,opacity:.7}}>Weitere Kategorien</h3><div className="bat-grid-t" style={S.batGrid}>{ordEmpty.map((cid,i)=>{const bc=BAT_CATS.find(c=>c.id===cid);return(<button key={cid} draggable onDragStart={e=>onDS(e,cid)} onDragOver={onDO} onDrop={e=>onDr(e,cid)} style={{...S.batCard,borderColor:bc.color,opacity:dragId===cid?.4:.6,animation:`fadeIn .3s ease-out ${i*.04}s both`}} onClick={()=>setOpenCat(cid)}><div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",width:64,height:64,fontSize:28,opacity:.5}}><Icon name={bc.icon} color={bc.colorDark} size={28}/><span style={{fontSize:10,marginTop:2}}>Leer</span></div><span style={{fontSize:11.5,fontWeight:600,color:bc.colorDark}}>{bc.label}</span></button>);})}</div></>}
-        </>):(()=>{const bc=BAT_CATS.find(c=>c.id===openCat);const ch=habitsFor(openCat);const pct=ch.length?calcBat(ch):100;const totalW=ch.reduce((s,h)=>s+(h.weight||1),0);const qt=pct<=40&&ch.length?getQT(openCat):[];
+        </>):(()=>{const bc=BAT_CATS.find(c=>c.id===openCat);const ch=habitsFor(openCat);const bt=batTasks(openCat);const pct=ch.length?batPct(openCat):100;const totalW=batItems(openCat).reduce((s,h)=>s+(h.weight||1),0);const qt=pct<=40&&ch.length?getQT(openCat):[];
           return(<div style={{animation:"fadeIn .3s ease-out"}}><button style={S.bk} onClick={()=>{setOpenCat(null);setShowHF(false);}}>← Alle Batterien</button>
-            <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 16px",borderRadius:20,marginBottom:12,background:bc.colorLight}}><BatterySVG pct={ch.length?pct:100} size={90}/><div style={{flex:1}}><h2 style={{fontSize:20,fontWeight:700,color:bc.colorDark,display:"flex",alignItems:"center",gap:6}}><Icon name={bc.icon} color={bc.colorDark} size={22}/>{bc.label}</h2><p style={{fontSize:12,color:bc.colorDark,fontWeight:500,marginTop:2}}>{getBatLabel(ch.length?pct:100)}</p><p style={{fontSize:11,color:"#9B8AAE",marginTop:4}}>{ch.length} Habit{ch.length!==1?"s":""}</p></div></div>
+            <div style={{display:"flex",alignItems:"center",gap:14,padding:"14px 16px",borderRadius:20,marginBottom:12,background:bc.colorLight}}><BatterySVG pct={ch.length?pct:100} size={90}/><div style={{flex:1}}><h2 style={{fontSize:20,fontWeight:700,color:bc.colorDark,display:"flex",alignItems:"center",gap:6}}><Icon name={bc.icon} color={bc.colorDark} size={22}/>{bc.label}</h2><p style={{fontSize:12,color:bc.colorDark,fontWeight:500,marginTop:2}}>{getBatLabel(ch.length?pct:100)}</p><p style={{fontSize:11,color:"#9B8AAE",marginTop:4}}>{ch.length} Habit{ch.length!==1?"s":""}{bt.length?` · ${bt.length} Meilenstein${bt.length!==1?"e":""}`:""}</p></div></div>
             {pct<=40&&ch.length>0&&<div style={S.qT}><h3 style={{fontSize:14,fontWeight:700,color:"#B83A3A",marginBottom:8,display:"flex",alignItems:"center",gap:4}}><Icon name="bolt" color="#B83A3A" size={18}/>Schnell aufladen:</h3>{qt.map((q,i)=>(<div key={i} style={{background:"#fff",borderRadius:14,padding:11,display:"flex",gap:9,alignItems:"flex-start",marginBottom:6,animation:`fadeIn .3s ease-out ${i*.08}s both`}}><div style={{width:34,height:34,borderRadius:10,background:"#FDE8E6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{q.animal?<MiniAnimal type={q.animal} size={28}/>:<Icon name={q.icon} color="#B83A3A" size={18}/>}</div><div style={{flex:1}}><h4 style={{fontSize:13,fontWeight:600,color:"#5B4A6A"}}>{q.title}</h4><p style={{fontSize:11,color:"#6B5F7F",lineHeight:1.4,marginTop:2}}>{q.text}</p></div>{q.action&&<button style={{background:"#E86A5A",color:"#fff",border:"none",borderRadius:10,padding:"6px 12px",fontSize:11,fontWeight:600,fontFamily:"Fredoka,sans-serif",cursor:"pointer",alignSelf:"center"}} onClick={q.action}>Jetzt!</button>}{q.link&&<button style={{background:"none",border:"none",fontSize:11,fontWeight:600,color:"#5BA3C0",fontFamily:"Fredoka,sans-serif",cursor:"pointer",alignSelf:"center"}} onClick={()=>goToHelp(q.link)}>Hilfe →</button>}</div>))}</div>}
             {ch.length>0&&<div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:12}}>{ch.map((h,idx)=>{const iv=INTERVALS.find(i=>i.id===h.interval)||INTERVALS[2];const ov=isOver(h.lastDone,iv.days);const np=Math.round(((h.weight||1)/totalW)*100);const rm=REMIND_OPTS.find(r=>r.id===h.remind);return(<div key={h.id} style={{background:"#fff",borderRadius:16,padding:13,border:`2.5px solid ${ov?"#E86A5A":"#5EC269"}`,animation:`fadeIn .3s ease-out ${idx*.05}s both`}}><div style={{display:"flex",alignItems:"center",gap:9}}><div style={{width:12,height:12,borderRadius:6,background:ov?"#E86A5A":"#5EC269",flexShrink:0}}/><div style={{flex:1,minWidth:0}}><h3 style={{fontSize:14,fontWeight:700,color:"#4A3D5C"}}>{h.name}</h3><p style={{fontSize:10.5,color:"#9B8AAE",fontWeight:500,marginTop:1}}>{iv.label} · {np}% · {timeAgo(h.lastDone)}{rm&&rm.id!=="none"?` · Erinnerung: ${rm.label}`:""}</p></div><button style={{background:"none",border:"none",fontSize:13,cursor:"pointer",opacity:.4}} aria-label="Habit löschen" onClick={()=>rmH(h.id)}><Icon name="delete" color="#5B4A6A" size={18}/></button></div><button style={{border:"none",borderRadius:12,padding:"9px 0",fontSize:12.5,fontWeight:600,fontFamily:"Fredoka,sans-serif",cursor:"pointer",color:"#fff",marginTop:8,width:"100%",background:ov?"#E86A5A":"#5EC269",animation:checkAnim===h.id?"checkPop .4s ease-out":"none"}} onClick={()=>checkIn(h.id)}>{ov?`Aufladen +${np}%`:<>Erledigt <Icon name="check" size={13} style={{verticalAlign:"-2px"}}/></>}</button></div>);})}</div>}
+            {/* Verknüpfte Meilensteine (v6.1): laden wie ein Habit, Tap öffnet den Meilenstein */}
+            {bt.length>0&&<div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:12}}>{bt.map(m=>{const t=tasks.find(x=>x.id===m.taskId);const on=batCharged(t);const np=Math.round((m.weight/totalW)*100);return(
+              <button key={m.id} style={{...S.homeCard,border:`2.5px solid ${on?"#5EC269":"#F4A0B5"}`}} onClick={()=>{goTab("breaker");setBkOpen(t.id);}}>
+                <Icon name="extension" color="#D9709A" size={20}/>
+                <span style={{flex:1,minWidth:0,textAlign:"left"}}>
+                  <span style={{display:"block",overflowWrap:"anywhere"}}>{t.name}</span>
+                  <span style={{fontSize:10.5,fontWeight:500,color:"#6B5F7F"}}>Meilenstein · {on?"geladen durch den letzten Schritt":"lädt beim nächsten abgehakten Schritt"}</span>
+                </span>
+                <span style={{fontWeight:700,color:on?"#2E7D3A":"#A83D61"}}>+{np}%</span>
+              </button>);})}</div>}
             {ch.length===0&&!showHF&&<div style={{textAlign:"center",padding:"24px 0"}}><Caterpillar size={50}/><p style={{fontSize:14,color:"#5B4A6A",fontWeight:600,marginTop:9}}>Noch keine Habits für {bc.label}.</p><p style={{fontSize:12,color:"#9B8AAE",fontWeight:500,marginTop:3}}>Was lädt diese Batterie auf?</p></div>}
             {showHF?(<div style={{background:"#fff",borderRadius:18,padding:16,boxShadow:"0 4px 16px rgba(180,160,200,.12)",animation:"fadeIn .3s ease-out"}}><h3 style={{fontSize:16,fontWeight:700,color:"#5B4A6A",marginBottom:10}}>Neuer Habit für {bc.label}</h3>
               <label style={S.fL}>Was lädt diese Batterie auf?</label><input style={{...S.fIn,borderColor:bc.color}} placeholder="z.B. Spaziergang, Yoga…" value={hN} onChange={e=>setHN(e.target.value)} autoFocus/>

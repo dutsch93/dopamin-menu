@@ -290,6 +290,7 @@ Eine Frage pro Bildschirm, Fortschrittspunkte oben, „← Zurück" möglich. Na
    - **Warum ist dir das wichtig?** (ein Satz, Freitext)
    - **Was ist der allerkleinste erste Schritt?** (unter 2 Minuten; wird als Schritt 1 mit `custom: true` vorne eingefügt)
    - **Ist die Frist echt oder selbst gesetzt?** (zwei Chips: „Echt 📌" / „Selbst gesetzt 🌱"; nur wenn ein Datum gesetzt ist)
+   - **Lädt dieser Meilenstein eine deiner Batterien?** (v6.1, nur wenn Batterien eingerichtet sind) Auswahl einer **Batterie** (nur eingerichtete, mit Ladestand). Die zur Kategorie passende steht oben und ist **bereits beim Wählen der Kategorie vorgemerkt** (`BREAKER_TO_BAT`: Sport → Bewegung, Soziales → Soziales, Kreatives → Kreativität, Haushalt → Haushalt). Gespeichert als `batCat`. Wird eine Batterie gewählt, folgt „Wie stark lädt er die Batterie?“ (1–5, Standard 2, gespeichert als `batWeight`) mit Vorschau „Ein abgehakter Schritt lädt [Batterie] um +X %“.
    - **Deine Belohnung:** Freitext („Serie schauen", „Eis essen") + Vorschlags-Chips aus den Menü-Einträgen der Kategorien **Sides 🐛 und Appetizers 🐙** (inkl. eigener Einträge). **Keine Entrées** – die sind Deep Work, keine Belohnung. Tap auf Chip füllt das Textfeld.
 4. Abschluss: „Fertig zerlegt 🧩" → Meilenstein ist geplant, wechselt zur Schritt-Ansicht.
 
@@ -299,6 +300,12 @@ Eine Frage pro Bildschirm, Fortschrittspunkte oben, „← Zurück" möglich. Na
 - Dezenter Button **„Meilenstein löschen“** am Ende, mit kurzer Rückfrage in der App (kein `window.confirm`)
 - Das **„Warum"** steht oben in einer kleinen Karte (falls ausgefüllt)
 - **Belohnung** sichtbar: „🎁 Am Ziel wartet: [Belohnung]"
+- **Batterie-Verknüpfung (v6.1):** Auswahlfeld „Lädt Batterie: [Batterie]“ + „Stärke: 1–5“ + Anteil „+X %“ + Status („Gerade geladen – hält 2–3 Tage“ / „Lädt beim nächsten abgehakten Schritt“), jederzeit änderbar.
+  - **Ein verknüpfter, offener Meilenstein ist Teil der Batterie wie ein Habit** (`batItems(cid)` = Habits + `batTasks(cid)`). Er hat Gewicht `batWeight` (Standard 2), Intervall „Alle 2–3 Tage“, und „zuletzt erledigt“ ist `lastProgress` (letzter abgehakter Schritt). `calcBat` bleibt unverändert.
+  - Ein Schritt lädt also **genau den Anteil des Meilensteins** (z.B. +20 %), nie die ganze Batterie. Ohne neuen Schritt entlädt sich der Anteil nach 2–3 Tagen.
+  - Folge: Direkt nach dem Verknüpfen sinkt die Batterie etwas (der Meilenstein zählt als „noch nicht geladen“), bis der erste Schritt abgehakt ist. Genau wie beim Anlegen eines neuen Habits.
+  - Erledigte Meilensteine fallen aus der Batterie heraus. Die Habits werden nie verändert. Es gibt keinen Extra-Stern.
+  - Die Batterie-Detailansicht zeigt verknüpfte Meilensteine unter den Habits (Puzzle-Icon, „+X %“, Status). Ein Tap öffnet den Meilenstein. Die Anteile der Habits („+X %“) berücksichtigen die Meilensteine.
 - Nummerierte Liste der Schritte als Karten. Jeder Schritt hat:
   - Checkbox zum Abhaken → sofort +1 ⭐, zählt außerdem für ✅ Heute und 🔥 Streak (wie eine Menü-Aktivität)
   - Editierbaren Text (Input bei Tap)
@@ -326,7 +333,7 @@ Eine Frage pro Bildschirm, Fortschrittspunkte oben, „← Zurück" möglich. Na
 - Kein Druck-Text: „Du kannst jederzeit pausieren"
 - Wenn ein geplanter Meilenstein länger als 3 Tage keinen Fortschritt hat (basierend auf `lastProgress`, sonst `created`), erscheint ein sanfter Hinweis: „Steckst du fest? 🐢 Schildkröte hat Tipps →" mit Link zu `setTab("hilfe"); setOpenProb("start")`
 
-**Bewusst NICHT im ersten Release:** Priorität-Feld, Onboarding/Belohnungs-Einstellungen, Timer aus einem Schritt starten, automatische Kategorie-Erkennung, eigene Vorlagen merken, Kopplung an Batterien, wiederkehrende Meilensteine, eigene Benachrichtigungen für Schritte. Begründungen: siehe `docs/ideas/breaker-meilensteine.md`.
+**Bewusst NICHT im ersten Release:** Priorität-Feld, Onboarding/Belohnungs-Einstellungen, Timer aus einem Schritt starten, automatische Kategorie-Erkennung, eigene Vorlagen merken, ~~Kopplung an Batterien~~ (in v6.1 als freiwillige Verknüpfung mit einer Batterie umgesetzt), wiederkehrende Meilensteine, eigene Benachrichtigungen für Schritte. Begründungen: siehe `docs/ideas/breaker-meilensteine.md`.
 
 **Datenmodell (wird zu localStorage `dopamin_menu_v5` hinzugefügt als `tasks` Array):**
 
@@ -339,6 +346,8 @@ Eine Frage pro Bildschirm, Fortschrittspunkte oben, „← Zurück" möglich. Na
   category: "finanzen",        // BREAKER_CATS id, null solange ungeplant
   why: "Damit ich ohne Stress in den Urlaub fahre",  // "" wenn übersprungen
   reward: "Eis essen",         // "" wenn übersprungen
+  batCat: "bewegung",          // v6.1: verknüpfte Batterie (BAT_CATS-id), sonst null
+  batWeight: 2,                // v6.1: Gewicht in der Batterie (1–5), wie bei Habits
   steps: [                     // leer = ungeplant („Noch nicht zerlegt")
     { id: "s1", text: "Ordner öffnen", done: false, custom: true,  due: "2026-10-05", dueManual: false },
     { id: "s2", text: "Unterlagen/Zugänge sammeln", done: false, custom: false, due: "2026-10-10", dueManual: false }
@@ -444,7 +453,7 @@ Alles in einem einzigen localStorage-Key: `dopamin_menu_v5`
   catOrder: ["natur", "bewegung", ...],
   notifSettings: { dailyTip: false, dailyMenu: false },
   onboardingProfile: { struggles: ["start", ...], time: "15", preferences: ["bewegung", ...] },
-  tasks: [{ id, name, deadline, deadlineType, category, why, reward, steps: [{id, text, done, custom, due, dueManual}], created, lastProgress, completed }]
+  tasks: [{ id, name, deadline, deadlineType, category, why, reward, batCat, batWeight, steps: [{id, text, done, custom, due, dueManual}], created, lastProgress, completed }]
 }
 ```
 
