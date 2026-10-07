@@ -43,7 +43,7 @@ Jede Person meldet sich mit ihrer **E-Mail-Adresse und einem 6-stelligen Code** 
   - Abmelden: `supabase.auth.signOut()`
 - **Neu (Entwicklung):** `vitest` für automatische Tests
 - **Zugangsdaten** als Umgebungsvariablen:
-  - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+  - `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (Supabase „Publishable key“, `sb_publishable_…`; der alte „anon key“ ist bei Supabase als veraltet markiert)
   - lokal in `.env.local` (wird durch `*.local` in `.gitignore` nicht eingecheckt)
   - in Vercel unter Project → Settings → Environment Variables (für Preview **und** Production)
 
@@ -53,7 +53,7 @@ Jede Person meldet sich mit ihrer **E-Mail-Adresse und einem 6-stelligen Code** 
 2. Authentication → Providers → **Email** aktiv, „Confirm email“ an
 3. Authentication → Email Templates → „Magic Link“ **und** „Confirm signup“: Text auf Deutsch, mit dem Code `{{ .Token }}` statt eines Links
 4. Authentication → Settings: Ablaufzeit des Codes auf **5 Minuten** (300 Sekunden), Code-Länge **6**
-5. Project Settings → API: Projekt-URL und „anon public“-Schlüssel kopieren → `.env.local` und Vercel
+5. Project Settings → API Keys: Projekt-URL und Publishable key kopieren → `.env.local` und Vercel. Details: `supabase-einrichtung.md`
 
 ## Befehle
 
@@ -71,7 +71,7 @@ Tests live:   npm run test:watch (neu: vitest)
 src/App.jsx        ← App inkl. Login-Bildschirm und Supabase-Anbindung (wie bisher alles in einer Datei)
 src/logic.js       ← NEU: reine, testbare Funktionen ohne React
 src/logic.test.js  ← NEU: Vitest-Tests für logic.js
-.env.local         ← NEU, lokal, nicht im Git: Supabase-URL und anon key
+.env.local         ← NEU, lokal, nicht im Git: Supabase-URL und Publishable key
 docs/specs/        ← Bauplan und Spezifikationen v7
 ```
 
@@ -94,7 +94,7 @@ Fehlertexte kommen aus **einer** Funktion `authErrorText(error)`, die Supabase-F
 |---|---|
 | E-Mail-Prüfung, Code-Prüfung (6 Ziffern), Fehlertexte, Countdown-Berechnung | **Vitest**, automatisch (`npm test`) |
 | Bestehende Logik (`planDue`, `cleanTasks`) | wandert nach `logic.js` und bekommt Vitest-Tests (ersetzt die Prüfskripte im Scratchpad) |
-| Echter Login gegen Supabase | **Klicktest durch Anh** (Claude darf keine Anmeldedaten bei fremden Diensten eingeben). Checkliste im Aufgabenplan. |
+| Echter Login gegen Supabase | **Klicktest durch Anh** (Claude darf keine Anmeldedaten bei fremden Diensten eingeben). Checkliste im Aufgabenplan. **Einschränkung des eingebauten Supabase-Mailversands:** Codes nur an Mitglieder des Supabase-Teams, höchstens 2 Mails pro Stunde, nicht für den Livebetrieb gedacht. |
 | Build, Lint | vor jedem Commit |
 
 ## Grenzen

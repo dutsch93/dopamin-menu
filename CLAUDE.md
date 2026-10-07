@@ -472,7 +472,9 @@ dopamin-menu/
 │   ├── icon-192.png
 │   └── icon-512.png
 ├── src/
-│   ├── App.jsx          ← Gesamte App in einer Datei
+│   ├── App.jsx          ← Gesamte Oberfläche in einer Datei
+│   ├── logic.js         ← v7: reine, testbare Funktionen + Breaker-Daten (ohne React)
+│   ├── logic.test.js    ← v7: automatische Tests (Vitest, `npm test`)
 │   ├── App.css           (leer)
 │   ├── index.css         (leer)
 │   └── main.jsx          (Vite-Standard, unverändert)
@@ -490,13 +492,15 @@ dopamin-menu/
 
 **Git:** Gearbeitet wird auf Feature-Branches (z.B. `feature/v6`). Ein Push auf einen Branch erzeugt eine geschützte Vercel-Vorschau (nur mit Vercel-Login sichtbar). Erst der Merge nach `main` geht live.
 
-**Wichtig:** Die gesamte App lebt in `src/App.jsx`. Kein Routing, keine separaten Komponenten-Dateien. Alles inline-styled mit einem `S`-Objekt am Ende der Datei. Das ist gewollt — hält die Komplexität niedrig für eine localStorage-only-App.
+**Wichtig:** Die gesamte Oberfläche lebt in `src/App.jsx`. **Ausnahme seit v7:** Reine Rechen-Funktionen ohne React (Datum, Terminplanung `planDue`, Datenprüfung `cleanTasks`, Sortierung) und die Breaker-Daten (`BREAKER_CATS`, `BREAKER_TO_BAT`) liegen in `src/logic.js`, damit sie automatisch getestet werden können. Neue reine Logik gehört dorthin, mit Test in `src/logic.test.js`. Kein Routing, keine separaten Komponenten-Dateien. Alles inline-styled mit einem `S`-Objekt am Ende der Datei. Das ist gewollt — hält die Komplexität niedrig für eine localStorage-only-App.
 
 ---
 
 ## Technische Hinweise
 
-- **Keine externen Dependencies** außer React (kommt mit Vite)
+- **Dependencies:** React (mit Vite). Seit v7 zusätzlich `vitest` (nur Entwicklung) und ab Modul `identity` `@supabase/supabase-js`. Weitere nur nach Rückfrage.
+- **Befehle:** `npm run dev` · `npm run build` · `npm run lint` · `npm test` (Vitest, einmalig) · `npm run test:watch`
+- **Vor jedem Commit:** `npm test`, `npm run build`, `npm run lint` (Ausgangswert: 6 Fehler / 2 Warnungen in altem Code in `App.jsx`, es dürfen nicht mehr werden)
 - **Keine Router-Library** — Tab-Wechsel über `useState`
 - **Font:** Fredoka und die Icon-Schrift (Material Symbols) werden per Google Fonts CSS-Import im `<style>`-Tag geladen
 - **Icons:** Google Material Symbols über `<Icon>` (siehe Design-System → Icons). Keine Emojis in fest eingebauten Texten oder Daten.

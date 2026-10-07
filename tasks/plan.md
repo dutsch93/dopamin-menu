@@ -25,7 +25,7 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 
 ## Architektur-Entscheidungen
 
-- **Supabase-Client einmal außerhalb der Komponente** erzeugen (`createClient(url, anonKey)`), mit `import.meta.env`. Fehlen die Variablen, zeigt die App eine Entwickler-Meldung statt abzustürzen.
+- **Supabase-Client einmal außerhalb der Komponente** erzeugen (`createClient(url, publishableKey)`), mit `import.meta.env`. Fehlen die Variablen, zeigt die App eine Entwickler-Meldung statt abzustürzen.
 - **Sitzung:** beim Start `getSession()`, danach `onAuthStateChange`. Solange die Sitzung lädt, erscheint ein kurzer Lade-Zustand (Maskottchen), damit der Login-Bildschirm nicht kurz aufblitzt.
 - **Login-Gate ganz oben im JSX:** Ohne Sitzung wird nur der Login-Bildschirm gerendert, kein Onboarding, kein Footer. Bestehende Logik bleibt unverändert darunter.
 - **Hooks-Regel:** Alle bestehenden `useState`/`useEffect` bleiben unbedingt aufgerufen. Das Gate entscheidet nur, *was gerendert wird*, nicht ob Hooks laufen.
@@ -56,7 +56,7 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 
 | Risiko | Auswirkung | Gegenmaßnahme |
 |---|---|---|
-| Eingebauter Supabase-Mailversand ist stark begrenzt | Mittel: Tests scheitern an fehlenden Mails | Sparsam testen, „Code erneut senden“ erst nach 60 s. Eigener Mail-Dienst vor dem Livegang. |
+| Eingebauter Supabase-Mailversand: nur an Team-Mitglieder, max. 2 Mails/Stunde | Mittel: Tests scheitern an fehlenden Mails („Email address not authorized“) | Mit Anhs Supabase-Login-Adresse testen, sparsam, Code gilt 5 Min. Eigener Mail-Dienst ist **Pflicht** vor dem Livegang. |
 | 5-Minuten-Code läuft während einer Ablenkung ab | Mittel (UX) | Gültigkeit sichtbar anzeigen, eigene Meldung mit direktem „Neuen Code senden“ |
 | Schlüssel landet im Git | Hoch | Nur `.env.local` (durch `*.local` ignoriert), `.env.example` ohne echte Werte, Prüfung vor jedem Commit (`git grep`) |
 | Login-Gate bricht bestehende Hooks/Onboarding | Hoch | Hooks unverändert lassen, Gate nur im Rendering, Klicktest von Onboarding nach Login |

@@ -7,7 +7,7 @@
 - `npm run build` ohne Fehler
 - `npm run lint`: nicht mehr Meldungen als der Ausgangswert (6 Fehler, 2 Warnungen in altem Code)
 - Keine Emojis, alle Icons in `ICON_NAMES`
-- `git grep -n "eyJ\|service_role\|SUPABASE_ANON_KEY=" -- ':!.env.example'` findet keinen Schlüssel
+- `git grep -nE "sb_secret_|sb_publishable_[A-Za-z0-9]|service_role|eyJ[A-Za-z0-9]" -- ':!.env.example' ':!docs'` findet keinen Schlüssel
 - Texte und Kommentare auf Deutsch
 
 ---
@@ -21,7 +21,7 @@
 **Akzeptanzkriterien:**
 - [ ] Projekt in Region Frankfurt, E-Mail-Login aktiv
 - [ ] E-Mail-Vorlagen auf Deutsch mit `{{ .Token }}`, Code gilt 5 Minuten, 6 Stellen
-- [ ] Projekt-URL und anon key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
+- [ ] Projekt-URL und Publishable key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
 
 **Prüfung:** Claude prüft nur, ob `.env.local` existiert und die Variablen gesetzt sind, ohne die Werte auszugeben.
 **Abhängigkeiten:** keine · **Umfang:** – (Einstellungen, kein Code)
@@ -33,9 +33,9 @@
 **Beschreibung:** `vitest` als Dev-Dependency, Skripte `test` und `test:watch`. `ymd`, `parseYmd`, `addDays`, `daysBetween`, `planDue`, `cleanTasks`, `isYmd` und `BREAKER_CATS` ziehen von `App.jsx` nach `src/logic.js` und werden in `App.jsx` importiert. Die bisherigen Prüfskripte (25 Fälle) werden zu Vitest-Tests in `src/logic.test.js`.
 
 **Akzeptanzkriterien:**
-- [ ] `npm test` führt mindestens die 25 bisherigen Fälle aus, alle grün
+- [x] `npm test` führt die bisherigen Fälle aus (zusammengefasst in 21 Vitest-Tests, plus Sortierung und Breaker-Daten), alle grün
 - [ ] App verhält sich unverändert (Breaker: zerlegen, abhaken; Home: Dein Fokus)
-- [ ] `App.jsx` enthält die verschobenen Funktionen nicht mehr doppelt
+- [x] `App.jsx` enthält die verschobenen Funktionen nicht mehr doppelt
 
 **Prüfung:** `npm test`, `npm run build`, Lint; Klicktest Breaker (Anh)
 **Abhängigkeiten:** keine · **Dateien:** `package.json`, `src/logic.js`, `src/logic.test.js`, `src/App.jsx` · **Umfang:** S
@@ -51,7 +51,7 @@
 
 ### Task 2: Supabase anbinden und Konfiguration prüfen
 
-**Beschreibung:** `@supabase/supabase-js` installieren. Client außerhalb der Komponente mit `VITE_SUPABASE_URL` und `VITE_SUPABASE_ANON_KEY`. Fehlen die Werte, zeigt die App eine klare Entwickler-Meldung. Eine `.env.example` mit Platzhaltern kommt ins Repository.
+**Beschreibung:** `@supabase/supabase-js` installieren. Client außerhalb der Komponente mit `VITE_SUPABASE_URL` und `VITE_SUPABASE_PUBLISHABLE_KEY`. Fehlen die Werte, zeigt die App eine klare Entwickler-Meldung. Eine `.env.example` mit Platzhaltern kommt ins Repository.
 
 **Akzeptanzkriterien:**
 - [ ] Mit `.env.local`: App startet normal (noch ohne Login-Gate)

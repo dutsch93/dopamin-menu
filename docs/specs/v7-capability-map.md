@@ -26,6 +26,6 @@ Bis v6 galt: *„localStorage, kein Backend, kein Account“* und *„Privacy-fi
 ## Querschnitt (gilt für alle Module)
 
 - **Neue Dependencies (freigegeben):** `@supabase/supabase-js` (Laufzeit), `vitest` (nur Entwicklung, für automatische Tests)
-- **Zugangsdaten:** nur die öffentliche Projekt-URL und der öffentliche „anon key“ im Browser, als Vite-Umgebungsvariablen. **Niemals** der „service_role“-Schlüssel im Browser oder im Repository.
+- **Zugangsdaten:** nur die öffentliche Projekt-URL und der öffentliche „Publishable key“ (`sb_publishable_…`) im Browser, als Vite-Umgebungsvariablen. **Niemals** der „Secret key“ (`sb_secret_…`) bzw. der alte „service_role“-Schlüssel im Browser oder im Repository.
 - **Konflikt beim ersten Login** (Gerät und Konto haben beide Daten): nachfragen, siehe `SPEC-cloud-sync.md`
 - **Nicht in v7:** Erinnerungen per E-Mail/Push, Teilen, Statistiken, echtes Zusammenführen bei gleichzeitigem Bearbeiten auf zwei Geräten (in v7 gewinnt der zuletzt gespeicherte Stand)
