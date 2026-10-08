@@ -56,7 +56,7 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 
 | Risiko | Auswirkung | Gegenmaßnahme |
 |---|---|---|
-| Eingebauter Supabase-Mailversand: nur an Team-Mitglieder, max. 2 Mails/Stunde | Mittel: Tests scheitern an fehlenden Mails („Email address not authorized“) | Mit Anhs Supabase-Login-Adresse testen, sparsam, Code gilt 5 Min. Eigener Mail-Dienst ist **Pflicht** vor dem Livegang. |
+| Codes landen ohne eigene Domain im Spam | Mittel (Test-UX) | Versand über Brevo (eigenes SMTP, nötig für Vorlagen mit Code). In der Testphase Spam-Ordner prüfen. **Vor dem Livegang:** eigene Domain in Brevo bestätigen. |
 | 5-Minuten-Code läuft während einer Ablenkung ab | Mittel (UX) | Gültigkeit sichtbar anzeigen, eigene Meldung mit direktem „Neuen Code senden“ |
 | Schlüssel landet im Git | Hoch | Nur `.env.local` (durch `*.local` ignoriert), `.env.example` ohne echte Werte, Prüfung vor jedem Commit (`git grep`) |
 | Login-Gate bricht bestehende Hooks/Onboarding | Hoch | Hooks unverändert lassen, Gate nur im Rendering, Klicktest von Onboarding nach Login |
@@ -64,4 +64,4 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 | Claude kann den echten Login nicht selbst testen | Mittel | Klare Checkliste für Anh; alles andere automatisch mit Vitest |
 
 ## Offene Fragen
-- Absender der E-Mails für den Livegang (Entscheidung vor dem Livegang, siehe Spezifikation)
+- Eigene Domain für den E-Mail-Versand (vor dem Livegang, siehe Spezifikation)

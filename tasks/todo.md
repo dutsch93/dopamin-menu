@@ -20,6 +20,7 @@
 
 **Akzeptanzkriterien:**
 - [ ] Projekt in Region Frankfurt, E-Mail-Login aktiv
+- [ ] Brevo eingerichtet und in Supabase als Custom SMTP eingetragen
 - [ ] E-Mail-Vorlagen auf Deutsch mit `{{ .Token }}`, Code gilt 5 Minuten, 6 Stellen
 - [ ] Projekt-URL und Publishable key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
 

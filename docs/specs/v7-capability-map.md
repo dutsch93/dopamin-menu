@@ -25,6 +25,7 @@ Bis v6 galt: *„localStorage, kein Backend, kein Account“* und *„Privacy-fi
 
 ## Querschnitt (gilt für alle Module)
 
+- **Neuer Drittanbieter (freigegeben 08.10.2026):** Brevo (EU) für den Versand der Login-Codes per SMTP. Wird in Supabase eingetragen, nicht in der App. Vor dem Livegang: eigene Domain.
 - **Neue Dependencies (freigegeben):** `@supabase/supabase-js` (Laufzeit), `vitest` (nur Entwicklung, für automatische Tests)
 - **Zugangsdaten:** nur die öffentliche Projekt-URL und der öffentliche „Publishable key“ (`sb_publishable_…`) im Browser, als Vite-Umgebungsvariablen. **Niemals** der „Secret key“ (`sb_secret_…`) bzw. der alte „service_role“-Schlüssel im Browser oder im Repository.
 - **Konflikt beim ersten Login** (Gerät und Konto haben beide Daten): nachfragen, siehe `SPEC-cloud-sync.md`

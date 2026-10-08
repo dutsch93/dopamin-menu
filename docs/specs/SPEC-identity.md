@@ -94,7 +94,7 @@ Fehlertexte kommen aus **einer** Funktion `authErrorText(error)`, die Supabase-F
 |---|---|
 | E-Mail-Prüfung, Code-Prüfung (6 Ziffern), Fehlertexte, Countdown-Berechnung | **Vitest**, automatisch (`npm test`) |
 | Bestehende Logik (`planDue`, `cleanTasks`) | wandert nach `logic.js` und bekommt Vitest-Tests (ersetzt die Prüfskripte im Scratchpad) |
-| Echter Login gegen Supabase | **Klicktest durch Anh** (Claude darf keine Anmeldedaten bei fremden Diensten eingeben). Checkliste im Aufgabenplan. **Einschränkung des eingebauten Supabase-Mailversands:** Codes nur an Mitglieder des Supabase-Teams, höchstens 2 Mails pro Stunde, nicht für den Livebetrieb gedacht. |
+| Echter Login gegen Supabase | **Klicktest durch Anh** (Claude darf keine Anmeldedaten bei fremden Diensten eingeben). Checkliste im Aufgabenplan. Versand über Brevo (siehe Entscheidung 4). Ohne eigene Domain im Spam-Ordner nachsehen. |
 | Build, Lint | vor jedem Commit |
 
 ## Grenzen
@@ -118,6 +118,8 @@ Fehlertexte kommen aus **einer** Funktion `authErrorText(error)`, die Supabase-F
 2. **`src/logic.js` ist erlaubt** für reine, testbare Funktionen ohne React. Die Oberfläche bleibt komplett in `App.jsx`.
 3. **Konto-Symbol im Header** (Personen-Icon neben der Glocke) öffnet ein Panel mit E-Mail und „Abmelden“. `account-privacy` erweitert es später.
 
+4. **E-Mail-Versand über Brevo** (08.10.2026): Supabase erlaubt eigene Vorlagen (und damit den Code `{{ .Token }}` in der Mail) nur mit eigenem SMTP. Gewählt: **Brevo** (EU, kostenlos bis 300 Mails/Tag). Damit gehen Codes an jede Adresse, bis 30 Mails/Stunde.
+
 ## Offene Fragen
 
-1. **Absender der E-Mails:** Zum Testen reicht der eingebaute Versand von Supabase (nur sehr wenige Mails pro Stunde). Vor dem Livegang brauchen wir einen eigenen E-Mail-Dienst. Die Entscheidung fällt vor dem Livegang, nicht jetzt.
+1. **Eigene Domain:** Bis zum Livegang kommen die Mails von einer bestätigten Einzeladresse und landen oft im Spam. **Vor dem Livegang** muss eine eigene Domain gekauft und in Brevo bestätigt werden (SPF/DKIM/DMARC). Eigene Anleitung folgt.

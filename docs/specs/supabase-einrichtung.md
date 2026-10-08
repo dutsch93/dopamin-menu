@@ -1,6 +1,6 @@
 # Anleitung: Supabase für das Dopamin-Menü einrichten
 
-*Für Anh · Task 0 in `tasks/todo.md` · Dauer: ca. 15–20 Minuten · Stand: 07.10.2026*
+*Für Anh · Task 0 in `tasks/todo.md` · Dauer: ca. 30–40 Minuten · Stand: 08.10.2026*
 
 Supabase verwaltet ab v7 die Konten (Login per E-Mail-Code) und später die App-Daten. Diese Schritte machst du selbst im Browser. Claude darf keine Konten anlegen und keine Zugangsdaten bei fremden Diensten eingeben.
 
@@ -11,7 +11,6 @@ Supabase verwaltet ab v7 die Konten (Login per E-Mail-Code) und später die App-
 ## Schritt 1: Projekt anlegen
 
 1. Öffne https://supabase.com/dashboard und melde dich an (oder erstelle ein kostenloses Konto).
-   **Merk dir, mit welcher E-Mail-Adresse du dich anmeldest.** Nur an diese Adresse schickt Supabase in der Testphase Login-Codes (siehe „Wichtig zum Testen“ unten).
 2. Klick auf **New project**.
 3. Ausfüllen:
    - **Name:** `dopamin-menu`
@@ -38,7 +37,47 @@ Supabase verwaltet ab v7 die Konten (Login per E-Mail-Code) und später die App-
 
 ---
 
-## Schritt 3: E-Mail-Vorlagen auf Deutsch, mit Code statt Link
+## Schritt 3: Eigenen E-Mail-Versand mit Brevo einrichten
+
+Supabase lässt die E-Mail-Vorlagen (Schritt 4) nur bearbeiten, wenn ein eigener E-Mail-Versand („Custom SMTP“) eingerichtet ist. Ohne eigene Vorlage enthält die Mail nur einen Link und keinen Code. Wir nehmen **Brevo**: EU-Anbieter, kostenlos bis 300 Mails pro Tag.
+
+### 3a) Brevo-Konto und Absender
+
+1. Kostenloses Konto auf https://www.brevo.com anlegen (Plan „Free“).
+2. In Brevo eine **Absender-Adresse** bestätigen: oben rechts auf deinen Namen → **Senders, Domains & Dedicated IPs** → **Senders** → **Add sender**.
+   - Name: `Dopamin-Menü`
+   - E-Mail: eine Adresse, die du abrufen kannst
+   - Brevo schickt dir eine Bestätigungsmail. Den Link darin anklicken.
+
+> **Ohne eigene Domain (Testphase):** Kommen die Mails von einer Gmail-, iCloud- oder GMX-Adresse über Brevo, landen sie häufig im **Spam**. Zum Testen ist das okay, schau einfach im Spam-Ordner nach. **Vor dem Livegang** brauchen wir eine eigene Domain (ca. 5–15 € im Jahr), die wir in Brevo bestätigen. Dafür gibt es dann eine eigene kurze Anleitung.
+
+### 3b) SMTP-Zugangsdaten bei Brevo holen
+
+1. In Brevo: oben rechts auf deinen Namen → **SMTP & API** → Reiter **SMTP**.
+2. Dort stehen **SMTP Server** (`smtp-relay.brevo.com`), **Port** (`587`) und dein **Login** (sieht aus wie `xxxxxx@smtp-brevo.com`).
+3. **Generate a new SMTP key** → Name z.B. `supabase-dopamin-menu` → Schlüssel **sofort kopieren**. Er wird nur einmal angezeigt.
+   **Nicht dein Brevo-Passwort verwenden**, das funktioniert nicht. Und nicht den „API key“, sondern den **SMTP key**.
+
+### 3c) In Supabase eintragen
+
+1. Supabase → **Authentication** → **Emails** → Reiter **SMTP Settings** → **Enable custom SMTP** einschalten.
+2. Ausfüllen:
+   - **Sender email:** die in Brevo bestätigte Absender-Adresse
+   - **Sender name:** `Dopamin-Menü`
+   - **Host:** `smtp-relay.brevo.com`
+   - **Port:** `587`
+   - **Username:** dein Brevo-**Login** (`…@smtp-brevo.com`)
+   - **Password:** der **SMTP key** aus 3b
+   - **Minimum interval between emails:** `60` (Sekunden, passt zu „Code erneut senden“ in der App)
+3. **Save**
+
+**Den SMTP key nur dort eintragen.** Nicht in den Chat, nicht in `.env.local`, nicht ins Projekt. Die App braucht ihn nicht, nur Supabase.
+
+✅ *Fertig, wenn „Custom SMTP“ als aktiv angezeigt wird. Ab jetzt sind die Vorlagen bearbeitbar, und das Limit steigt von 2 auf 30 Mails pro Stunde.*
+
+---
+
+## Schritt 4: E-Mail-Vorlagen auf Deutsch, mit Code statt Link
 
 1. Links **Authentication** → **Emails** → Reiter **Templates**
 2. Öffne die Vorlage **Confirm signup** und ersetze:
@@ -62,7 +101,7 @@ Supabase verwaltet ab v7 die Konten (Login per E-Mail-Code) und später die App-
 
 ---
 
-## Schritt 4: Adresse der App eintragen
+## Schritt 5: Adresse der App eintragen
 
 1. Links **Authentication** → **URL Configuration**
 2. **Site URL:** `https://dopamin-menu.vercel.app`
@@ -75,7 +114,7 @@ Supabase verwaltet ab v7 die Konten (Login per E-Mail-Code) und später die App-
 
 ---
 
-## Schritt 5: Projekt-Adresse und Schlüssel kopieren
+## Schritt 6: Projekt-Adresse und Schlüssel kopieren
 
 1. Links unten **Project Settings** (Zahnrad) → **API Keys**.
    *Alternativ:* oben im Dashboard auf **Connect** klicken. Dort stehen Adresse und Schlüssel fertig zum Kopieren.
@@ -88,7 +127,7 @@ Der Publishable key darf im Browser stehen, dafür ist er gemacht. Die Daten sch
 
 ---
 
-## Schritt 6a: Werte lokal eintragen (für die Entwicklung)
+## Schritt 7a: Werte lokal eintragen (für die Entwicklung)
 
 1. In VS Code im Projektordner `Dopamin Menu` (ganz oben, nicht in `src`) eine **neue Datei** anlegen: Rechtsklick in die Dateiliste → **New File** → Name: **`.env.local`** (mit Punkt am Anfang).
 2. Diesen Inhalt hineinkopieren und die Platzhalter durch deine zwei Werte ersetzen:
@@ -101,7 +140,7 @@ Der Publishable key darf im Browser stehen, dafür ist er gemacht. Die Daten sch
 
 Diese Datei wird **nicht** zu GitHub hochgeladen (`*.local` steht in der `.gitignore`).
 
-## Schritt 6b: Werte in Vercel eintragen (für Vorschau und Live-Seite)
+## Schritt 7b: Werte in Vercel eintragen (für Vorschau und Live-Seite)
 
 1. https://vercel.com → Projekt **dopamin-menu** → **Settings** → **Environment Variables**
 2. Zwei Variablen anlegen, jeweils mit den Umgebungen **Production** und **Preview**:
@@ -115,9 +154,10 @@ Diese Datei wird **nicht** zu GitHub hochgeladen (`*.local` steht in der `.gitig
 
 ## Wichtig zum Testen
 
-- **Login-Codes kommen in der Testphase nur bei Mitgliedern deines Supabase-Teams an**, also an die E-Mail-Adresse, mit der du dich bei Supabase angemeldet hast. Andere Adressen bekommen die Fehlermeldung „Email address not authorized“. Weitere Tester lädst du unter **Organization → Team** ein.
-- **Höchstens 2 Mails pro Stunde** über den eingebauten Versand. Also sparsam testen. Der Code ist 5 Minuten gültig, man muss nicht für jeden Versuch einen neuen anfordern.
-- Vor dem Livegang richten wir einen eigenen E-Mail-Dienst ein (eigener Schritt, kommt später). Dann gelten diese Grenzen nicht mehr.
+- **Mit Brevo (Schritt 3)** gehen Codes an jede Adresse, bis zu **30 Mails pro Stunde** (Supabase) bzw. **300 pro Tag** (Brevo, kostenlos).
+- **Ohne eigene Domain** landen die Mails oft im **Spam-Ordner**. In der Testphase einfach dort nachsehen.
+- Kommt gar keine Mail an: In Brevo unter **Transactional** → **Logs** nachsehen, ob die Mail verschickt wurde. Supabase zeigt Fehler unter **Logs** → **Auth**.
+- **Vor dem Livegang:** eigene Domain kaufen und in Brevo bestätigen (eigene Anleitung folgt).
 
 ---
 
@@ -125,6 +165,8 @@ Diese Datei wird **nicht** zu GitHub hochgeladen (`*.local` steht in der `.gitig
 
 - [ ] Projekt in **Frankfurt** angelegt
 - [ ] Email-Login an, **Confirm email** an, Code **300 Sekunden**, **6 Stellen**
+- [ ] Brevo: Konto, bestätigter Absender, **SMTP key** erzeugt
+- [ ] Supabase: **Custom SMTP** mit Brevo-Daten aktiv
 - [ ] Vorlagen **Confirm signup** und **Magic Link** auf Deutsch mit `{{ .Token }}`
 - [ ] Site URL und Redirect URLs eingetragen
 - [ ] `.env.local` mit `VITE_SUPABASE_URL` und `VITE_SUPABASE_PUBLISHABLE_KEY` angelegt
