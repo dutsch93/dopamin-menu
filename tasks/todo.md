@@ -97,9 +97,9 @@
 **Beschreibung:** Personen-Icon neben der Glocke (`aria-label="Konto"`). Öffnet ein Panel im Stil des Benachrichtigungs-Panels mit der E-Mail-Adresse und „Abmelden“ (`signOut`). Lokale App-Daten bleiben in diesem Modul beim Abmelden erhalten.
 
 **Akzeptanzkriterien:**
-- [ ] Panel zeigt die richtige E-Mail, „Abmelden“ führt zum Login-Bildschirm
-- [ ] Nach erneutem Login sind die lokalen Daten noch da
-- [ ] Glocken-Panel und Konto-Panel sind nie gleichzeitig offen
+- [x] Panel zeigt die richtige E-Mail, „Abmelden“ führt zum Login-Bildschirm
+- [x] Nach erneutem Login sind die lokalen Daten noch da
+- [x] Glocken-Panel und Konto-Panel sind nie gleichzeitig offen
 
 **Prüfung:** Klicktest Anh
 **Abhängigkeiten:** Task 3 · **Dateien:** `src/App.jsx` · **Umfang:** S
@@ -108,6 +108,6 @@
 
 ## ✅ Checkpoint B: Modul `identity` fertig
 - [ ] Klicktest-Checkliste (lokal + Vercel-Vorschau, iPhone: Code-Vorschlag der Tastatur)
-- [ ] `SPEC-identity.md` abgeglichen, CLAUDE.md um Abschnitt „Login“ ergänzt
+- [x] `SPEC-identity.md` abgeglichen, CLAUDE.md um Abschnitt „Login“ ergänzt
 - [ ] Push `feature/v7` (Vorschau). **Kein** Merge nach `main` (erst nach allen drei Modulen)
 - [ ] Danach: Spezifikation `cloud-sync`

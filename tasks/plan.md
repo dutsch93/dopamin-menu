@@ -43,9 +43,9 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 
 ### Phase B: Login
 - [x] Task 2: Supabase anbinden, Konfigurations-Prüfung, `.env.example`
-- [ ] Task 3: Login-Gate: E-Mail → Code → App (glücklicher Weg)
-- [ ] Task 4: Erneut senden mit Countdown, Fehlerfälle, Barrierefreiheit
-- [ ] Task 5: Konto-Panel im Header mit Abmelden
+- [x] Task 3: Login-Gate: E-Mail → Code → App (glücklicher Weg)
+- [x] Task 4: Erneut senden mit Countdown, Fehlerfälle, Barrierefreiheit
+- [x] Task 5: Konto-Panel im Header mit Abmelden
 
 ### Checkpoint B (Modul `identity` fertig)
 - [ ] Klicktest-Checkliste durch Anh (lokal und in der Vercel-Vorschau, auch iPhone)

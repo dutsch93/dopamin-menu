@@ -108,12 +108,16 @@ const migI=it=>{if(!it)return defI();const o={};Object.values(CATEGORIES).forEac
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
-const ICON_NAMES=["ac_unit","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","event_busy","expand_more","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","hourglass_top","key","label","lightbulb","local_fire_department","location_on","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
+const ICON_NAMES=["ac_unit","account_circle","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","event_busy","expand_more","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","hourglass_top","key","label","lightbulb","local_fire_department","location_on","logout","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
 const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
 // Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
 const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
 // Für gespeicherte Nutzerdaten: neue Einträge haben einen Icon-Namen, ältere eigene Tipps noch ein Emoji – beides wird angezeigt.
 const Ico=({v,color,size=20})=>/^[a-z0-9_]+$/.test(v||"")?<Icon name={v} color={color} size={size}/>:<span aria-hidden="true" style={{fontSize:size*.85,lineHeight:1}}>{v}</span>;
+
+// Globale Styles (Schriften, Icon-Schrift, box-sizing, Animationen) – gelten für ALLE Bildschirme,
+// deshalb in der Hülle App gerendert (vorher nur in DopaminMenu, der Login-Bildschirm bekam sie nicht).
+const GLOBAL_CSS=`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');@import url('${ICON_URL}');*{box-sizing:border-box;margin:0;padding:0}@keyframes wiggle{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes nod{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes bounce{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(.95)}}@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-120px) rotate(720deg);opacity:0}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}@keyframes slideIn{0%{transform:translateX(50px);opacity:0}100%{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}@keyframes checkPop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}@keyframes rowOut{0%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(24px)}}@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}@media(min-width:768px){.tablet-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}.bat-grid-t{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}}`;
 
 /* ═══ FOOTER-TABS ═══ */
 // Reihenfolge = Reihenfolge im Footer.
@@ -149,7 +153,7 @@ const ONBOARDING_DATA = {
 };
 
 // Die eigentliche App (bis v6 die einzige Komponente). Wird von App unten nur gezeigt, wenn alles bereit ist.
-function DopaminMenu(){
+function DopaminMenu({user}){
   const st = ld();
   const [onboardingComplete, setOnboardingComplete] = useState(localStorage.getItem("onboarding_complete") === "true");
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -166,6 +170,10 @@ function DopaminMenu(){
   const[openCat,setOpenCat]=useState(null);const[showHF,setShowHF]=useState(false);const[hN,setHN]=useState("");const[hW,setHW]=useState(1);const[hInt,setHInt]=useState("weekly");const[hRemind,setHRemind]=useState("overdue");
   const[checkAnim,setCheckAnim]=useState(null);const[dragId,setDragId]=useState(null);
   const[showNotifs,setShowNotifs]=useState(false);const[showNotifSettings,setShowNotifSettings]=useState(false);
+  // Konto-Panel (v7): E-Mail anzeigen, Abmelden
+  const[showAccount,setShowAccount]=useState(false);const[signingOut,setSigningOut]=useState(false);
+  // Abmelden nur auf DIESEM Gerät (scope "local", klappt auch offline). Lokale App-Daten bleiben vorerst erhalten (Modul cloud-sync ändert das).
+  const signOut=async()=>{setSigningOut(true);await supabase.auth.signOut({scope:"local"});setSigningOut(false);};
   const[notifications,setNotifications]=useState([]);
   const timerRef=useRef(null);
 
@@ -268,7 +276,7 @@ function DopaminMenu(){
   const rmH=hid=>{setHabits(p=>p.filter(h=>h.id!==hid));};
   const goToHelp=hid=>{setTab("hilfe");setOpenProb(hid);setOpenCat(null);setShowNotifs(false);};
   // Tab wechseln und offene Detailansichten schließen (Footer-Navigation)
-  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setBkOpen(null);setBkDel(null);setDraft(null);setBkNewDate(null);setBkLetGo(null);};
+  const goTab=k=>{setTab(k);setOpenProb(null);setOpenCat(null);setShowNotifs(false);setShowAccount(false);setBkOpen(null);setBkDel(null);setDraft(null);setBkNewDate(null);setBkLetGo(null);};
 
   // Breaker: Meilenstein schnell eintippen ("Rauskippen"). Feld wird sofort geleert, Fokus bleibt für den nächsten Eintrag.
   const addTask=e=>{e.preventDefault();const n=bkName.trim();if(!n)return;
@@ -387,7 +395,6 @@ function DopaminMenu(){
 
   return(
     <div style={S.wrap}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap');@import url('${ICON_URL}');*{box-sizing:border-box;margin:0;padding:0}@keyframes wiggle{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes nod{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}@keyframes bounce{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-8px) scaleY(.95)}}@keyframes pop{0%{transform:scale(.3);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}@keyframes confetti{0%{transform:translateY(0) rotate(0);opacity:1}100%{transform:translateY(-120px) rotate(720deg);opacity:0}}@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@keyframes fadeIn{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}@keyframes slideIn{0%{transform:translateX(50px);opacity:0}100%{transform:translateX(0);opacity:1}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}@keyframes checkPop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}@keyframes rowOut{0%{opacity:1;transform:translateX(0)}100%{opacity:0;transform:translateX(24px)}}@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}@media(min-width:768px){.tablet-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))!important}.bat-grid-t{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))!important}}`}</style>
 
       {/* ONBOARDING */}
       {!onboardingComplete && (
@@ -485,11 +492,25 @@ function DopaminMenu(){
           <div style={S.stat}><Icon name="check_circle" color="#5EC269" size={17}/><span style={S.statN}>{doneToday}</span><span style={S.statL}>Heute</span></div>
           {avgBat!==null&&<div style={{...S.stat,borderLeft:`3px solid ${getBatColor(avgBat)}`}}><Icon name="battery_charging_full" color={getBatColor(avgBat)} size={17}/><span style={{...S.statN,color:getBatColor(avgBat)}}>{avgBat}%</span><span style={S.statL}>Energie</span></div>}
           {/* notif bell */}
-          <button style={{...S.stat,cursor:"pointer",border:"none",position:"relative"}} aria-label="Benachrichtigungen" onClick={()=>{setShowNotifs(!showNotifs);setShowNotifSettings(false);requestNotifPermission();}}>
+          <button style={{...S.stat,cursor:"pointer",border:"none",position:"relative"}} aria-label="Benachrichtigungen" aria-expanded={showNotifs} onClick={()=>{setShowNotifs(!showNotifs);setShowAccount(false);setShowNotifSettings(false);requestNotifPermission();}}>
             <Icon name="notifications" color="#9B6FCF" size={18}/>{urgentNotifs.length>0&&<span style={S.notifBadge}>{urgentNotifs.length}</span>}
+          </button>
+          {/* Konto (v7) */}
+          <button style={{...S.stat,cursor:"pointer",border:"none"}} aria-label="Konto" aria-expanded={showAccount} onClick={()=>{setShowAccount(!showAccount);setShowNotifs(false);}}>
+            <Icon name="account_circle" color="#5BA3C0" size={19}/>
           </button>
         </div>
       </div>
+
+      {/* KONTO-PANEL (v7): wer ist angemeldet, Abmelden */}
+      {showAccount&&<div style={S.notifPanel} role="dialog" aria-label="Dein Konto">
+        <h3 style={{fontSize:15,fontWeight:700,color:"#5B4A6A",display:"flex",alignItems:"center",gap:6,marginBottom:10}}><Icon name="account_circle" color="#5BA3C0" size={20}/>Dein Konto</h3>
+        <p style={{fontSize:13,color:"#5B4A6A",lineHeight:1.5}}>Angemeldet als<br/><b style={{overflowWrap:"anywhere"}}>{user?.email||"–"}</b></p>
+        <button style={{...S.loginBtn,display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",opacity:signingOut?.7:1}} disabled={signingOut} aria-busy={signingOut} onClick={signOut}>
+          <Icon name="logout" color="#fff" size={18}/>{signingOut?"Einen Moment…":"Abmelden"}
+        </button>
+        <p style={{fontSize:11,color:"#6B5F7F",marginTop:8,lineHeight:1.4}}>Du wirst nur auf diesem Gerät abgemeldet. Deine Daten auf diesem Gerät bleiben erhalten.</p>
+      </div>}
 
       {/* NOTIFICATION PANEL */}
       {showNotifs&&<div style={S.notifPanel}>
@@ -1024,18 +1045,18 @@ export default function App(){
     const{data:{subscription}}=supabase.auth.onAuthStateChange((_ev,s)=>setSession(s));
     return()=>subscription.unsubscribe();},[]);
 
-  if(!supabase)return(
+  if(!supabase)return(<><style>{GLOBAL_CSS}</style>
     <div style={S.cfgWrap} role="alert">
       <Octopus size={70}/>
       <h1 style={S.cfgTitle}>Supabase ist nicht eingerichtet</h1>
       <p style={S.cfgText}>Für Entwickler: Es fehlen <code>VITE_SUPABASE_URL</code> und/oder <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.</p>
       <p style={S.cfgText}>Lokal in <code>.env.local</code> eintragen (Vorlage: <code>.env.example</code>), auf Vercel unter Settings → Environment Variables. Danach den Entwicklungsserver neu starten.</p>
-    </div>
+    </div></>
   );
   // Kurzer Lade-Zustand, damit der Login-Bildschirm nicht aufblitzt, wenn man schon angemeldet ist
-  if(session===undefined)return(<div style={S.cfgWrap} role="status" aria-label="Wird geladen"><div style={{animation:"float 1.5s ease-in-out infinite"}}><Octopus size={64} animate/></div></div>);
-  if(!session)return <LoginScreen/>;
-  return <DopaminMenu/>;
+  if(session===undefined)return(<><style>{GLOBAL_CSS}</style><div style={S.cfgWrap} role="status" aria-label="Wird geladen"><div style={{animation:"float 1.5s ease-in-out infinite"}}><Octopus size={64} animate/></div></div></>);
+  if(!session)return <><style>{GLOBAL_CSS}</style><LoginScreen/></>;
+  return <><style>{GLOBAL_CSS}</style><DopaminMenu user={session.user}/></>;
 }
 
 /* ═══ STYLES ═══ */

@@ -71,6 +71,14 @@ Die App hat **5 Tabs** in einem festen Glas-Footer: **Home** (Start) · **Menü*
 - `prefers-reduced-motion` schaltet Animationen ab
 - Rückfragen (Löschen, Loslassen) direkt in der App, nie `window.confirm`
 
+### Login (v7, Modul `identity`, auf Branch `feature/v7`, noch nicht live)
+- **Aufbau:** `export default function App()` ist eine **Hülle**. Sie bindet die globalen Styles (`GLOBAL_CSS`) für alle Bildschirme ein, prüft die Supabase-Konfiguration und lädt die Sitzung (`getSession` + `onAuthStateChange`). Danach zeigt sie: Hinweis „nicht eingerichtet“ → Lade-Oktopus → `LoginScreen` → `DopaminMenu` (die eigentliche App, unverändert, bekommt `user`). So bleiben die Hooks in `DopaminMenu` unbedingt.
+- **Ablauf:** E-Mail → `signInWithOtp` → 6-stelliger Code (gilt 5 Min.) → `verifyOtp({type:"email"})`. Bei 6 Ziffern wird automatisch angemeldet. „Code erneut senden“ geht nach 60 s, die Sitzung bleibt über Neuladen erhalten.
+- **Fehlertexte** kommen aus `authErrorText()` in `logic.js` (getestet). Wichtig: Supabase meldet 5xx als `AuthRetryableFetchError`. Das ist **kein** Offline-Fehler, sondern meist ein Problem beim Mailversand. Lokal (`import.meta.env.DEV`) zeigt der Login eine technische Diagnose-Zeile ohne E-Mail-Adresse.
+- **Konto-Panel:** Personen-Icon im Header → E-Mail + „Abmelden“ (`signOut({scope:"local"})`, nur dieses Gerät). Lokale Daten bleiben vorerst erhalten.
+- **Zugangsdaten:** `VITE_SUPABASE_URL` und `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env.local` bzw. in Vercel (Vorlage `.env.example`). **Nie** den Secret key.
+- **Mailversand:** Supabase → Custom SMTP → **Brevo**. Fehlersuche: `docs/specs/supabase-einrichtung.md` und `python3 tools/test-brevo-smtp.py` (Code 525 = IP-Sperre in Brevo).
+
 ---
 
 ## Spezifikation v6 (umgesetzt am 05.10.2026)
