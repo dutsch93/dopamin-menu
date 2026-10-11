@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 // Reine Rechen-Funktionen und Breaker-Daten liegen in logic.js (dort mit Tests)
-import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline } from "./logic.js";
+import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline, isValidEmail, cleanCode, secondsLeft, authErrorText } from "./logic.js";
 import { createClient } from "@supabase/supabase-js";
 
 /* ═══ SUPABASE (Konto & Login, ab v7) ═══ */
@@ -942,9 +942,88 @@ function DopaminMenu(){
   );
 }
 
-/* ═══ HÜLLE: prüft Konfiguration (und ab Task 3 die Anmeldung), bevor die App erscheint ═══ */
+/* ═══ LOGIN: E-Mail -> 6-stelliger Code -> angemeldet (v7, Modul identity) ═══ */
+function LoginScreen(){
+  const[step,setStep]=useState("email");      // "email" oder "code"
+  const[email,setEmail]=useState("");const[code,setCode]=useState("");
+  const[busy,setBusy]=useState(false);
+  const[err,setErr]=useState(null);           // {kind,text} aus authErrorText
+  const[sentAt,setSentAt]=useState(null);const[now,setNow]=useState(()=>Date.now());
+  const codeRef=useRef(null);const emailRef=useRef(null);
+  const wait=secondsLeft(sentAt,now);
+  // Fehler übersetzen; in der Entwicklung zusätzlich technische Angaben (ohne E-Mail-Adresse) für die Fehlersuche
+  const loginErr=error=>({...authErrorText(error,navigator.onLine),diag:`${error?.name||"?"} · Status ${error?.status??"–"} · ${error?.code||"kein Code"} · ${String(error?.message||"").replace(/[^\s@]+@[^\s@]+/g,"[E-Mail]").slice(0,160)}`});
+
+  // Nach einem Fehler den Fokus ins passende Feld setzen – erst NACH dem Rendern, wenn das Feld nicht mehr gesperrt ist
+  useEffect(()=>{if(!err)return;(step==="code"?codeRef:emailRef).current?.focus();},[err,step]);
+  // Countdown für "Code erneut senden" (läuft nur, solange gewartet werden muss)
+  useEffect(()=>{if(step!=="code"||!sentAt)return;const iv=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(iv);},[step,sentAt]);
+
+  // Schritt 1: Code anfordern (legt beim ersten Mal automatisch das Konto an)
+  const sendCode=async e=>{e?.preventDefault();if(busy)return;const mail=email.trim();
+    if(!isValidEmail(mail)){setErr({kind:"email",text:"Bitte gib eine gültige E-Mail-Adresse ein, z.B. name@beispiel.de."});return;}
+    setBusy(true);setErr(null);
+    const{error}=await supabase.auth.signInWithOtp({email:mail,options:{shouldCreateUser:true}});
+    setBusy(false);
+    if(error){setErr(loginErr(error));return;}
+    setEmail(mail);setCode("");setSentAt(Date.now());setNow(Date.now());setStep("code");};
+
+  // Schritt 2: Code prüfen. Bei Erfolg meldet Supabase die neue Sitzung, App zeigt dann automatisch die App.
+  const verify=async c=>{if(busy||c.length!==6)return;setBusy(true);setErr(null);
+    const{error}=await supabase.auth.verifyOtp({email,token:c,type:"email"});
+    setBusy(false);
+    if(error){setErr(loginErr(error));setCode("");}};
+  const onCode=v=>{const c=cleanCode(v);setCode(c);if(c.length===6)verify(c);};
+  const backToEmail=()=>{setStep("email");setCode("");setErr(null);setSentAt(null);};
+
+  return(
+    <main style={S.loginWrap}>
+      <div style={S.loginCard}>
+        <div style={{display:"flex",justifyContent:"center",gap:10}} aria-hidden="true"><div style={{animation:"float 3s ease-in-out infinite"}}><Octopus size={54}/></div><div style={{animation:"float 3s ease-in-out infinite 1s"}}><Fox size={54}/></div></div>
+        <h1 style={S.loginTitle}>Dopamin-Menü</h1>
+
+        {step==="email"?(
+          <form onSubmit={sendCode} style={S.loginForm} noValidate>
+            <p style={S.loginText}>Schön, dass du da bist! Melde dich mit deiner E-Mail an – ohne Passwort, wir schicken dir einen Code.</p>
+            <label htmlFor="login-email" style={S.loginLabel}>Deine E-Mail-Adresse</label>
+            <input id="login-email" ref={emailRef} type="email" inputMode="email" autoComplete="email" autoFocus required
+              style={S.loginInp} value={email} onChange={e=>{setEmail(e.target.value);if(err)setErr(null);}}
+              aria-invalid={err?.kind==="email"} aria-describedby={err?"login-err":undefined} placeholder="name@beispiel.de"/>
+            {err&&<p id="login-err" role="alert" style={S.loginErr}>{err.text}{import.meta.env.DEV&&err.diag&&<span style={{display:"block",fontSize:11,fontWeight:500,marginTop:4,opacity:.8}}>Nur lokal sichtbar – technisch: {err.diag}</span>}</p>}
+            <button type="submit" style={{...S.loginBtn,opacity:busy?.7:1}} disabled={busy} aria-busy={busy}>{busy?"Einen Moment…":"Code senden"}</button>
+          </form>
+        ):(
+          <div style={S.loginForm}>
+            <p style={S.loginText}>Wir haben dir einen <b>6-stelligen Code</b> an <b style={{overflowWrap:"anywhere"}}>{email}</b> geschickt. Er gilt <b>5 Minuten</b>. Schau auch im Spam-Ordner nach.</p>
+            <label htmlFor="login-code" style={S.loginLabel}>Code aus der E-Mail</label>
+            <input id="login-code" ref={codeRef} type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={6} autoFocus
+              style={{...S.loginInp,...S.loginCodeInp}} value={code} onChange={e=>onCode(e.target.value)} disabled={busy}
+              aria-invalid={err?.kind==="code"} aria-describedby={err?"login-err":"login-code-hint"} placeholder="••••••"/>
+            <p id="login-code-hint" style={S.loginHint}>Sobald alle 6 Ziffern drin sind, meldest du dich automatisch an.</p>
+            {err&&<p id="login-err" role="alert" style={S.loginErr}>{err.text}{import.meta.env.DEV&&err.diag&&<span style={{display:"block",fontSize:11,fontWeight:500,marginTop:4,opacity:.8}}>Nur lokal sichtbar – technisch: {err.diag}</span>}</p>}
+            <button style={{...S.loginBtn,opacity:busy||code.length!==6?.6:1}} disabled={busy||code.length!==6} aria-busy={busy} onClick={()=>verify(code)}>{busy?"Einen Moment…":"Anmelden"}</button>
+            <div style={{display:"flex",justifyContent:"space-between",gap:8,flexWrap:"wrap",marginTop:4}}>
+              <button style={{...S.loginLink,opacity:busy||wait>0?.55:1,cursor:busy||wait>0?"default":"pointer"}} disabled={busy||wait>0} onClick={()=>sendCode()}>{wait>0?`Code erneut senden (in ${wait} s)`:"Code erneut senden"}</button>
+              <button style={{...S.loginLink,opacity:busy?.55:1}} disabled={busy} onClick={backToEmail}>Andere E-Mail-Adresse</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+/* ═══ HÜLLE: prüft Konfiguration und Anmeldung, bevor die App erscheint ═══ */
 // Eigene Komponente, damit DopaminMenu seine Hooks immer vollständig ausführt (React-Regel: Hooks nie bedingt aufrufen).
 export default function App(){
+  // undefined = Sitzung wird noch geladen, null = nicht angemeldet, Objekt = angemeldet
+  const[session,setSession]=useState(undefined);
+  useEffect(()=>{if(!supabase)return;
+    supabase.auth.getSession().then(({data})=>setSession(data.session));
+    // Supabase meldet An-/Abmeldung und erneuert die Sitzung automatisch (bleibt über Neuladen erhalten)
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_ev,s)=>setSession(s));
+    return()=>subscription.unsubscribe();},[]);
+
   if(!supabase)return(
     <div style={S.cfgWrap} role="alert">
       <Octopus size={70}/>
@@ -953,6 +1032,9 @@ export default function App(){
       <p style={S.cfgText}>Lokal in <code>.env.local</code> eintragen (Vorlage: <code>.env.example</code>), auf Vercel unter Settings → Environment Variables. Danach den Entwicklungsserver neu starten.</p>
     </div>
   );
+  // Kurzer Lade-Zustand, damit der Login-Bildschirm nicht aufblitzt, wenn man schon angemeldet ist
+  if(session===undefined)return(<div style={S.cfgWrap} role="status" aria-label="Wird geladen"><div style={{animation:"float 1.5s ease-in-out infinite"}}><Octopus size={64} animate/></div></div>);
+  if(!session)return <LoginScreen/>;
   return <DopaminMenu/>;
 }
 
@@ -962,6 +1044,19 @@ const S={
   cfgWrap:{fontFamily:"'Fredoka',sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,padding:24,textAlign:"center",background:"#FFF5E4",color:"#5B4A6A"},
   cfgTitle:{fontSize:20,fontWeight:700},
   cfgText:{fontSize:13,lineHeight:1.5,maxWidth:440},
+  // Login-Bildschirm
+  loginWrap:{fontFamily:"'Fredoka',sans-serif",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:"24px 16px",background:"linear-gradient(180deg,#FFF5E4,#FFF0F5 50%,#F0F5FF)",color:"#5B4A6A"},
+  loginCard:{width:"100%",maxWidth:420,background:"#fff",borderRadius:28,padding:"24px 20px",boxShadow:"0 12px 40px rgba(180,160,200,.2)",display:"flex",flexDirection:"column",gap:8},
+  loginTitle:{fontSize:24,fontWeight:700,textAlign:"center",letterSpacing:"-.5px"},
+  loginForm:{display:"flex",flexDirection:"column",gap:8,marginTop:4},
+  loginText:{fontSize:13.5,lineHeight:1.5,textAlign:"center",color:"#5B4A6A"},
+  loginLabel:{fontSize:13,fontWeight:600,marginTop:6},
+  loginInp:{border:"2px solid #C8A8E9",borderRadius:14,padding:"12px 14px",fontSize:16,fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",width:"100%",background:"#fff"},
+  loginCodeInp:{fontSize:26,fontWeight:700,letterSpacing:"10px",textAlign:"center"},
+  loginHint:{fontSize:11.5,color:"#6B5F7F",textAlign:"center"},
+  loginErr:{fontSize:13,fontWeight:600,color:"#9E2F2F",background:"#FDE8E6",borderRadius:12,padding:"8px 12px",lineHeight:1.4},
+  loginBtn:{border:"none",borderRadius:14,padding:"13px 20px",marginTop:6,background:"#7A52B3",color:"#fff",fontSize:15,fontWeight:700,fontFamily:"'Fredoka',sans-serif",cursor:"pointer"},
+  loginLink:{background:"none",border:"none",padding:"6px 0",fontSize:12.5,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#7A52B3",cursor:"pointer",textDecoration:"underline"},
   wrap:{fontFamily:"'Fredoka',sans-serif",background:"linear-gradient(180deg,#FFF5E4,#FFF0F5 50%,#F0F5FF)",minHeight:"100vh",padding:"0 0 calc(84px + env(safe-area-inset-bottom))",position:"relative",overflowX:"hidden",maxWidth:900,margin:"0 auto"},
   hdr:{textAlign:"center",padding:"18px 20px 9px",background:"linear-gradient(180deg,#FFFAF0,transparent)"},hdrTop:{display:"flex",alignItems:"center",justifyContent:"center",gap:9},
   title:{fontSize:23,fontWeight:700,color:"#5B4A6A",letterSpacing:"-.5px"},sub:{fontSize:11,color:"#9B8AAE",fontWeight:500,marginTop:1},

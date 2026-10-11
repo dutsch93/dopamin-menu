@@ -157,6 +157,9 @@ Diese Datei wird **nicht** zu GitHub hochgeladen (`*.local` steht in der `.gitig
 - **Mit Brevo (Schritt 3)** gehen Codes an jede Adresse, bis zu **30 Mails pro Stunde** (Supabase) bzw. **300 pro Tag** (Brevo, kostenlos).
 - **Ohne eigene Domain** landen die Mails oft im **Spam-Ordner**. In der Testphase einfach dort nachsehen.
 - Kommt gar keine Mail an: In Brevo unter **Transactional** → **Logs** nachsehen, ob die Mail verschickt wurde. Supabase zeigt Fehler unter **Logs** → **Auth**.
+- **App meldet „Die E-Mail konnte gerade nicht verschickt werden“ (lokal: Status 500):** Supabase erreicht Brevo nicht. Brevo-Zugangsdaten **ohne Mailversand** prüfen mit `python3 tools/test-brevo-smtp.py` (fragt Login und SMTP key ab, speichert nichts):
+  - **Code 535:** Login oder SMTP key falsch → neuen SMTP key erzeugen, Login genau so übernehmen, wie Brevo ihn anzeigt.
+  - **Code 525 („Unauthorized IP address“):** In Brevo ist die **Sperre unbekannter IP-Adressen** aktiv. Supabase sendet von wechselnden Adressen, deshalb unter Brevo → **Security → Authorized IPs** die Sperre (für SMTP keys) **ausschalten**. *(So war es beim Einrichten am 11.10.2026.)*
 - **Vor dem Livegang:** eigene Domain kaufen und in Brevo bestätigen (eigene Anleitung folgt).
 
 ---

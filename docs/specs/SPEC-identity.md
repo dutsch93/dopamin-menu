@@ -114,7 +114,7 @@ Fehlertexte kommen aus **einer** Funktion `authErrorText(error)`, die Supabase-F
 
 ## Entscheidungen (05.10.2026)
 
-1. **Code gilt 5 Minuten** (Anhs Wahl; Empfehlung war 15). Deshalb steht die Gültigkeit sichtbar im Login-Bildschirm. Ein abgelaufener Code bekommt eine eigene, freundliche Meldung mit direktem „Neuen Code senden“.
+1. **Code gilt 5 Minuten** (Anhs Wahl; Empfehlung war 15). Deshalb steht die Gültigkeit sichtbar im Login-Bildschirm. **Nachtrag (11.10.):** Supabase meldet für falschen und abgelaufenen Code denselben Fehler (`otp_expired`, „Token has expired or is invalid“). Deshalb gibt es **eine** gemeinsame Meldung: „Der Code stimmt leider nicht oder ist schon abgelaufen (er gilt 5 Minuten). Prüf ihn noch mal oder fordere einen neuen an.“ Darunter steht der Link „Code erneut senden“.
 2. **`src/logic.js` ist erlaubt** für reine, testbare Funktionen ohne React. Die Oberfläche bleibt komplett in `App.jsx`.
 3. **Konto-Symbol im Header** (Personen-Icon neben der Glocke) öffnet ein Panel mit E-Mail und „Abmelden“. `account-privacy` erweitert es später.
 

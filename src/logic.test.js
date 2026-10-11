@@ -1,6 +1,6 @@
 // Automatische Tests für src/logic.js. Ausführen: npm test
 import { describe, it, expect } from "vitest";
-import { ymd, addDays, daysBetween, planDue, cleanTasks, byDeadline, BREAKER_CATS, BREAKER_TO_BAT } from "./logic.js";
+import { ymd, addDays, daysBetween, planDue, cleanTasks, byDeadline, BREAKER_CATS, BREAKER_TO_BAT, isValidEmail, cleanCode, secondsLeft, authErrorText } from "./logic.js";
 
 // Hilfen: n Schritte ohne Termin, und nur die Termine einer Schrittliste
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: "s" + (i + 1), text: "Schritt " + (i + 1), done: false, custom: false, due: null, dueManual: false }));
@@ -118,5 +118,64 @@ describe("Breaker-Daten", () => {
   it("Batterie-Zuordnung zeigt nur auf vorhandene Breaker-Kategorien", () => {
     const ids = BREAKER_CATS.map(c => c.id);
     for (const k of Object.keys(BREAKER_TO_BAT)) expect(ids).toContain(k);
+  });
+});
+
+describe("Login: E-Mail und Code", () => {
+  it("isValidEmail erkennt typische Adressen und Tippfehler", () => {
+    expect(isValidEmail("anh@example.de")).toBe(true);
+    expect(isValidEmail("  anh.vu+test@mail.co.uk  ")).toBe(true);
+    for (const bad of ["", "anh", "anh@", "@mail.de", "anh@mail", "anh@mail.d", "an h@mail.de", null]) expect(isValidEmail(bad)).toBe(false);
+  });
+  it("cleanCode lässt nur 6 Ziffern übrig", () => {
+    expect(cleanCode("123456")).toBe("123456");
+    expect(cleanCode("123 456")).toBe("123456");
+    expect(cleanCode("Code: 98-76-54")).toBe("987654");
+    expect(cleanCode("12345678")).toBe("123456");
+    expect(cleanCode("abc")).toBe("");
+    expect(cleanCode(undefined)).toBe("");
+  });
+  it("secondsLeft zählt bis 0 herunter, nie negativ", () => {
+    const t0 = 1_000_000;
+    expect(secondsLeft(t0, t0)).toBe(60);
+    expect(secondsLeft(t0, t0 + 18_400)).toBe(42);
+    expect(secondsLeft(t0, t0 + 60_000)).toBe(0);
+    expect(secondsLeft(t0, t0 + 999_000)).toBe(0);
+    expect(secondsLeft(null, t0)).toBe(0);
+  });
+});
+
+describe("Login: Fehlertexte", () => {
+  it("falscher oder abgelaufener Code (Supabase: otp_expired)", () => {
+    expect(authErrorText({ code: "otp_expired", status: 403, message: "Token has expired or is invalid" }).kind).toBe("code");
+  });
+  it("zu viele Anfragen", () => {
+    expect(authErrorText({ code: "over_email_send_rate_limit", status: 429 }).kind).toBe("rate");
+    expect(authErrorText({ code: "over_request_rate_limit" }).kind).toBe("rate");
+    expect(authErrorText({ status: 429 }).kind).toBe("rate");
+  });
+  it("keine Internetverbindung", () => {
+    expect(authErrorText({ name: "AuthRetryableFetchError", message: "Failed to fetch" }).kind).toBe("offline");
+    expect(authErrorText({ message: "Load failed" }).kind).toBe("offline");
+    expect(authErrorText({ code: "irgendwas" }, false).kind).toBe("offline");
+  });
+  it("Server-Fehler (z.B. Mailversand hängt) ist KEIN Verbindungsfehler", () => {
+    // supabase-js meldet 502/503/504 als AuthRetryableFetchError – darf nicht "Keine Verbindung" heißen
+    expect(authErrorText({ name: "AuthRetryableFetchError", status: 504, message: "{}" }).kind).toBe("server");
+    expect(authErrorText({ name: "AuthApiError", status: 500, code: "unexpected_failure", message: "Error sending magic link email" }).kind).toBe("server");
+  });
+  it("ungültige Adresse", () => {
+    expect(authErrorText({ code: "email_address_invalid" }).kind).toBe("email");
+  });
+  it("Unbekanntes führt zu einem freundlichen Standardtext, nie zu technischen Details", () => {
+    const r = authErrorText({ code: "irgendwas", message: "Internal stack trace xyz" });
+    expect(r.kind).toBe("other");
+    expect(r.text).not.toMatch(/stack|xyz/);
+    expect(authErrorText(undefined).kind).toBe("other");
+  });
+  it("alle Texte sind Deutsch und ohne Fachbegriffe", () => {
+    for (const e of [{ code: "otp_expired" }, { status: 429 }, { message: "Failed to fetch" }, { code: "email_address_invalid" }, { status: 504 }, {}]) {
+      expect(authErrorText(e).text).not.toMatch(/OTP|token|error|rate limit/i);
+    }
   });
 });

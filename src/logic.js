@@ -57,3 +57,31 @@ export function cleanTasks(raw,batIds=[]){
 export const BREAKER_TO_BAT={sport:"bewegung",soziales:"sozial",kreatives:"kreativ",haushalt:"haushalt"};
 // Sortierung: früheste Frist zuerst, ohne Frist ganz unten, sonst nach Erstellung
 export const byDeadline=(a,b)=>{const x=a.deadline||"9999-12-31",y=b.deadline||"9999-12-31";return x<y?-1:x>y?1:a.created<b.created?-1:1;};
+
+/* ═══ LOGIN (v7, Modul identity) ═══ */
+// Einfache Prüfung der E-Mail-Adresse vor dem Senden (die genaue Prüfung macht Supabase)
+export const isValidEmail=s=>/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(s||"").trim());
+// Code-Eingabe bereinigen: nur Ziffern, höchstens 6 (z.B. beim Einfügen "123 456" oder "Code: 123456")
+export const cleanCode=s=>String(s||"").replace(/\D/g,"").slice(0,6);
+// Wie viele Sekunden noch bis "Code erneut senden"? (nie negativ)
+export const secondsLeft=(sentAt,now,wait=60)=>sentAt?Math.max(0,Math.ceil(wait-(now-sentAt)/1000)):0;
+// Supabase-Fehler -> freundlicher deutscher Satz. kind steuert die Oberfläche:
+// "code" = Code falsch/abgelaufen (Supabase unterscheidet das nicht), "rate" = zu viele Versuche,
+// "offline" = keine Verbindung, "server" = Supabase/Mailversand hat ein Problem, "email" = Adresse ungültig, "other" = unbekannt
+// online: navigator.onLine (false = Gerät sicher offline)
+export function authErrorText(err,online=true){
+  const code=err?.code||"",status=Number(err?.status)||0,msg=String(err?.message||"");
+  // Server-Fehler (5xx): Supabase stuft 502/503/504 selbst als "RetryableFetchError" ein – das ist aber KEIN Verbindungsproblem
+  // beim Nutzer, sondern meist ein hängender Mailversand (SMTP). Deshalb vor der Offline-Prüfung.
+  if(status>=500)
+    return{kind:"server",text:"Die E-Mail konnte gerade nicht verschickt werden. Versuch es bitte in ein paar Minuten nochmal."};
+  if(!online||err?.name==="AuthRetryableFetchError"||/failed to fetch|networkerror|load failed/i.test(msg))
+    return{kind:"offline",text:"Keine Verbindung zum Internet. Prüf deine Verbindung und versuch es nochmal."};
+  if(code==="otp_expired"||/token has expired|invalid/i.test(msg))
+    return{kind:"code",text:"Der Code stimmt leider nicht oder ist schon abgelaufen (er gilt 5 Minuten). Prüf ihn noch mal oder fordere einen neuen an."};
+  if(code==="over_email_send_rate_limit"||code==="over_request_rate_limit"||status===429)
+    return{kind:"rate",text:"Gerade kamen zu viele Anfragen. Warte bitte ein paar Minuten und versuch es dann nochmal."};
+  if(code==="email_address_invalid"||code==="validation_failed")
+    return{kind:"email",text:"Mit dieser E-Mail-Adresse klappt es leider nicht. Prüf sie bitte noch mal."};
+  return{kind:"other",text:"Da ist etwas schiefgelaufen. Versuch es bitte gleich nochmal."};
+}
