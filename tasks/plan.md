@@ -35,14 +35,14 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 ## Aufgaben
 
 ### Phase A: Fundament
-- [ ] Task 0: Supabase-Projekt einrichten (**Anh**, mit Anleitung `docs/specs/supabase-einrichtung.md`)
-- [ ] Task 1: Vitest einrichten, reine Funktionen nach `src/logic.js`, Prüfskripte als echte Tests
+- [x] Task 0: Supabase-Projekt einrichten (**Anh**, mit Anleitung `docs/specs/supabase-einrichtung.md`)
+- [x] Task 1: Vitest einrichten, reine Funktionen nach `src/logic.js`, Prüfskripte als echte Tests
 
 ### Checkpoint A
 - [ ] `npm test` grün, App verhält sich unverändert (kurzer Klicktest Breaker)
 
 ### Phase B: Login
-- [ ] Task 2: Supabase anbinden, Konfigurations-Prüfung, `.env.example`
+- [x] Task 2: Supabase anbinden, Konfigurations-Prüfung, `.env.example`
 - [ ] Task 3: Login-Gate: E-Mail → Code → App (glücklicher Weg)
 - [ ] Task 4: Erneut senden mit Countdown, Fehlerfälle, Barrierefreiheit
 - [ ] Task 5: Konto-Panel im Header mit Abmelden
@@ -61,6 +61,7 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 | Schlüssel landet im Git | Hoch | Nur `.env.local` (durch `*.local` ignoriert), `.env.example` ohne echte Werte, Prüfung vor jedem Commit (`git grep`) |
 | Login-Gate bricht bestehende Hooks/Onboarding | Hoch | Hooks unverändert lassen, Gate nur im Rendering, Klicktest von Onboarding nach Login |
 | Bestehende Live-Nutzer werden ausgesperrt | Hoch | v7 geht erst live, wenn `cloud-sync` die lokalen Daten übernimmt |
+| App-Paket wächst durch supabase-js (85 → 142 KB gzip) | Niedrig (ca. 0,3 s mehr Ladezeit auf 4G) | Vorerst hinnehmen. Später Supabase erst nach dem Start nachladen (Code-Splitting), falls nötig. |
 | Claude kann den echten Login nicht selbst testen | Mittel | Klare Checkliste für Anh; alles andere automatisch mit Vitest |
 
 ## Offene Fragen

@@ -19,10 +19,10 @@
 **Beschreibung:** Anh legt das Supabase-Projekt an und stellt den Login per Code ein, Schritt für Schritt nach `docs/specs/supabase-einrichtung.md`. Claude darf keine Konten anlegen und keine Zugangsdaten bei fremden Diensten eingeben.
 
 **Akzeptanzkriterien:**
-- [ ] Projekt in Region Frankfurt, E-Mail-Login aktiv
-- [ ] Brevo eingerichtet und in Supabase als Custom SMTP eingetragen
-- [ ] E-Mail-Vorlagen auf Deutsch mit `{{ .Token }}`, Code gilt 5 Minuten, 6 Stellen
-- [ ] Projekt-URL und Publishable key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
+- [x] Projekt in Region Frankfurt, E-Mail-Login aktiv
+- [x] Brevo eingerichtet und in Supabase als Custom SMTP eingetragen
+- [x] E-Mail-Vorlagen auf Deutsch mit `{{ .Token }}`, Code gilt 5 Minuten, 6 Stellen
+- [x] Projekt-URL und Publishable key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
 
 **Prüfung:** Claude prüft nur, ob `.env.local` existiert und die Variablen gesetzt sind, ohne die Werte auszugeben.
 **Abhängigkeiten:** keine · **Umfang:** – (Einstellungen, kein Code)
@@ -55,9 +55,9 @@
 **Beschreibung:** `@supabase/supabase-js` installieren. Client außerhalb der Komponente mit `VITE_SUPABASE_URL` und `VITE_SUPABASE_PUBLISHABLE_KEY`. Fehlen die Werte, zeigt die App eine klare Entwickler-Meldung. Eine `.env.example` mit Platzhaltern kommt ins Repository.
 
 **Akzeptanzkriterien:**
-- [ ] Mit `.env.local`: App startet normal (noch ohne Login-Gate)
-- [ ] Ohne `.env.local`: verständliche Meldung statt leerer Seite
-- [ ] Kein echter Schlüssel im Repository
+- [x] Mit `.env.local`: App startet normal (noch ohne Login-Gate)
+- [x] Ohne `.env.local`: verständliche Meldung statt leerer Seite
+- [x] Kein echter Schlüssel im Repository
 
 **Prüfung:** Build mit und ohne Variablen; `git grep` auf Schlüssel
 **Abhängigkeiten:** Task 0, Task 1 · **Dateien:** `package.json`, `src/App.jsx`, `.env.example` · **Umfang:** XS

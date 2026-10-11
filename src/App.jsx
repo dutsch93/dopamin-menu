@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 // Reine Rechen-Funktionen und Breaker-Daten liegen in logic.js (dort mit Tests)
 import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline } from "./logic.js";
+import { createClient } from "@supabase/supabase-js";
+
+/* ═══ SUPABASE (Konto & Login, ab v7) ═══ */
+// Zugangsdaten kommen aus .env.local (lokal) bzw. aus den Vercel-Umgebungsvariablen.
+// Nur die öffentliche Projekt-URL und der Publishable key – NIEMALS der Secret key.
+const SUPA_URL=import.meta.env.VITE_SUPABASE_URL;
+const SUPA_KEY=import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+// Fehlen die Werte, gibt es keinen Client – die App zeigt dann einen Hinweis statt einer leeren Seite.
+const supabase=SUPA_URL&&SUPA_KEY?createClient(SUPA_URL,SUPA_KEY):null;
 
 /* ═══ MENU ═══ */
 const CATEGORIES = {
@@ -139,7 +148,8 @@ const ONBOARDING_DATA = {
   ]
 };
 
-export default function DopaminMenu(){
+// Die eigentliche App (bis v6 die einzige Komponente). Wird von App unten nur gezeigt, wenn alles bereit ist.
+function DopaminMenu(){
   const st = ld();
   const [onboardingComplete, setOnboardingComplete] = useState(localStorage.getItem("onboarding_complete") === "true");
   const [onboardingStep, setOnboardingStep] = useState(1);
@@ -932,8 +942,26 @@ export default function DopaminMenu(){
   );
 }
 
+/* ═══ HÜLLE: prüft Konfiguration (und ab Task 3 die Anmeldung), bevor die App erscheint ═══ */
+// Eigene Komponente, damit DopaminMenu seine Hooks immer vollständig ausführt (React-Regel: Hooks nie bedingt aufrufen).
+export default function App(){
+  if(!supabase)return(
+    <div style={S.cfgWrap} role="alert">
+      <Octopus size={70}/>
+      <h1 style={S.cfgTitle}>Supabase ist nicht eingerichtet</h1>
+      <p style={S.cfgText}>Für Entwickler: Es fehlen <code>VITE_SUPABASE_URL</code> und/oder <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.</p>
+      <p style={S.cfgText}>Lokal in <code>.env.local</code> eintragen (Vorlage: <code>.env.example</code>), auf Vercel unter Settings → Environment Variables. Danach den Entwicklungsserver neu starten.</p>
+    </div>
+  );
+  return <DopaminMenu/>;
+}
+
 /* ═══ STYLES ═══ */
 const S={
+  // Hinweis, wenn Supabase nicht konfiguriert ist (nur für Entwickler sichtbar)
+  cfgWrap:{fontFamily:"'Fredoka',sans-serif",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:10,padding:24,textAlign:"center",background:"#FFF5E4",color:"#5B4A6A"},
+  cfgTitle:{fontSize:20,fontWeight:700},
+  cfgText:{fontSize:13,lineHeight:1.5,maxWidth:440},
   wrap:{fontFamily:"'Fredoka',sans-serif",background:"linear-gradient(180deg,#FFF5E4,#FFF0F5 50%,#F0F5FF)",minHeight:"100vh",padding:"0 0 calc(84px + env(safe-area-inset-bottom))",position:"relative",overflowX:"hidden",maxWidth:900,margin:"0 auto"},
   hdr:{textAlign:"center",padding:"18px 20px 9px",background:"linear-gradient(180deg,#FFFAF0,transparent)"},hdrTop:{display:"flex",alignItems:"center",justifyContent:"center",gap:9},
   title:{fontSize:23,fontWeight:700,color:"#5B4A6A",letterSpacing:"-.5px"},sub:{fontSize:11,color:"#9B8AAE",fontWeight:500,marginTop:1},

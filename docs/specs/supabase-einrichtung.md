@@ -119,7 +119,7 @@ Supabase lässt die E-Mail-Vorlagen (Schritt 4) nur bearbeiten, wenn ein eigener
 1. Links unten **Project Settings** (Zahnrad) → **API Keys**.
    *Alternativ:* oben im Dashboard auf **Connect** klicken. Dort stehen Adresse und Schlüssel fertig zum Kopieren.
 2. Du brauchst genau zwei Werte:
-   - **Project URL**, sieht aus wie `https://abcdefghijkl.supabase.co`
+   - **Project URL**, sieht aus wie `https://abcdefghijkl.supabase.co`. Sie steht **nicht** unter „API Keys“, sondern unter **Project Settings → Data API** (oder im **Connect**-Dialog). Notfalls ableiten: Die Buchstabenfolge in der Browser-Adresse `…/dashboard/project/abcdefghijkl` ergibt `https://abcdefghijkl.supabase.co`.
    - **Publishable key**, beginnt mit `sb_publishable_…`
 
 **⚠️ Nicht verwenden:** den **Secret key** (`sb_secret_…`) und den alten **service_role**-Schlüssel. Die haben Vollzugriff auf alle Daten und dürfen nie in die App, in eine Datei im Projekt oder in den Chat.
