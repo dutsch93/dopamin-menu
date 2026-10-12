@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 // Reine Rechen-Funktionen und Breaker-Daten liegen in logic.js (dort mit Tests)
-import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline, isValidEmail, cleanCode, secondsLeft, authErrorText } from "./logic.js";
+import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline, isValidEmail, cleanCode, secondsLeft, authErrorText, switchLocalOwner } from "./logic.js";
 import { createClient } from "@supabase/supabase-js";
 
 /* ═══ SUPABASE (Konto & Login, ab v7) ═══ */
@@ -1040,9 +1040,12 @@ export default function App(){
   // undefined = Sitzung wird noch geladen, null = nicht angemeldet, Objekt = angemeldet
   const[session,setSession]=useState(undefined);
   useEffect(()=>{if(!supabase)return;
-    supabase.auth.getSession().then(({data})=>setSession(data.session));
+    // Vor dem Anzeigen: lokale Daten dem angemeldeten Konto zuordnen. Ein anderes Konto im selben Browser
+    // startet so leer und sieht nie die Daten des vorherigen Kontos (siehe switchLocalOwner in logic.js).
+    const take=s=>{if(s?.user){try{switchLocalOwner(localStorage,s.user.id);}catch{/* Speicher gesperrt: dann gibt es auch keine Daten */}}setSession(s);};
+    supabase.auth.getSession().then(({data})=>take(data.session));
     // Supabase meldet An-/Abmeldung und erneuert die Sitzung automatisch (bleibt über Neuladen erhalten)
-    const{data:{subscription}}=supabase.auth.onAuthStateChange((_ev,s)=>setSession(s));
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_ev,s)=>take(s));
     return()=>subscription.unsubscribe();},[]);
 
   if(!supabase)return(<><style>{GLOBAL_CSS}</style>
@@ -1056,7 +1059,7 @@ export default function App(){
   // Kurzer Lade-Zustand, damit der Login-Bildschirm nicht aufblitzt, wenn man schon angemeldet ist
   if(session===undefined)return(<><style>{GLOBAL_CSS}</style><div style={S.cfgWrap} role="status" aria-label="Wird geladen"><div style={{animation:"float 1.5s ease-in-out infinite"}}><Octopus size={64} animate/></div></div></>);
   if(!session)return <><style>{GLOBAL_CSS}</style><LoginScreen/></>;
-  return <><style>{GLOBAL_CSS}</style><DopaminMenu user={session.user}/></>;
+  return <><style>{GLOBAL_CSS}</style><DopaminMenu key={session.user.id} user={session.user}/></>;
 }
 
 /* ═══ STYLES ═══ */

@@ -1,6 +1,6 @@
 // Automatische Tests für src/logic.js. Ausführen: npm test
 import { describe, it, expect } from "vitest";
-import { ymd, addDays, daysBetween, planDue, cleanTasks, byDeadline, BREAKER_CATS, BREAKER_TO_BAT, isValidEmail, cleanCode, secondsLeft, authErrorText } from "./logic.js";
+import { ymd, addDays, daysBetween, planDue, cleanTasks, byDeadline, BREAKER_CATS, BREAKER_TO_BAT, isValidEmail, cleanCode, secondsLeft, authErrorText, switchLocalOwner } from "./logic.js";
 
 // Hilfen: n Schritte ohne Termin, und nur die Termine einer Schrittliste
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: "s" + (i + 1), text: "Schritt " + (i + 1), done: false, custom: false, due: null, dueManual: false }));
@@ -177,5 +177,38 @@ describe("Login: Fehlertexte", () => {
     for (const e of [{ code: "otp_expired" }, { status: 429 }, { message: "Failed to fetch" }, { code: "email_address_invalid" }, { status: 504 }, {}]) {
       expect(authErrorText(e).text).not.toMatch(/OTP|token|error|rate limit/i);
     }
+  });
+});
+
+describe("Lokale Daten gehören einem Konto (switchLocalOwner)", () => {
+  // Ersatz für localStorage im Test
+  const mem = (init = {}) => { const d = { ...init }; return { d, getItem: k => (k in d ? d[k] : null), setItem: (k, v) => { d[k] = String(v); }, removeItem: k => { delete d[k]; } }; };
+  it("erster Login übernimmt die vorhandenen Daten", () => {
+    const s = mem({ dopamin_menu_v5: "A-Daten", onboarding_complete: "true" });
+    expect(switchLocalOwner(s, "userA")).toBe("claimed");
+    expect(s.d).toEqual({ dopamin_menu_v5: "A-Daten", onboarding_complete: "true", data_owner: "userA" });
+  });
+  it("gleiches Konto: nichts ändert sich", () => {
+    const s = mem({ dopamin_menu_v5: "A-Daten", data_owner: "userA" });
+    expect(switchLocalOwner(s, "userA")).toBe("same");
+    expect(s.d.dopamin_menu_v5).toBe("A-Daten");
+  });
+  it("anderes Konto sieht die Daten des ersten Kontos NICHT und startet leer", () => {
+    const s = mem({ dopamin_menu_v5: "A-Daten", onboarding_complete: "true", data_owner: "userA" });
+    expect(switchLocalOwner(s, "userB")).toBe("switched");
+    expect(s.getItem("dopamin_menu_v5")).toBeNull();
+    expect(s.getItem("onboarding_complete")).toBeNull();
+    expect(s.getItem("data_owner")).toBe("userB");
+  });
+  it("Hin und zurück: jedes Konto bekommt genau seine eigenen Daten wieder", () => {
+    const s = mem({ dopamin_menu_v5: "A-Daten", onboarding_complete: "true", data_owner: "userA" });
+    switchLocalOwner(s, "userB");
+    s.setItem("dopamin_menu_v5", "B-Daten");
+    switchLocalOwner(s, "userA");
+    expect(s.getItem("dopamin_menu_v5")).toBe("A-Daten");
+    expect(s.getItem("onboarding_complete")).toBe("true");
+    switchLocalOwner(s, "userB");
+    expect(s.getItem("dopamin_menu_v5")).toBe("B-Daten");
+    expect(s.getItem("onboarding_complete")).toBeNull();
   });
 });

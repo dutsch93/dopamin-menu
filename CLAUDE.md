@@ -75,7 +75,8 @@ Die App hat **5 Tabs** in einem festen Glas-Footer: **Home** (Start) · **Menü*
 - **Aufbau:** `export default function App()` ist eine **Hülle**. Sie bindet die globalen Styles (`GLOBAL_CSS`) für alle Bildschirme ein, prüft die Supabase-Konfiguration und lädt die Sitzung (`getSession` + `onAuthStateChange`). Danach zeigt sie: Hinweis „nicht eingerichtet“ → Lade-Oktopus → `LoginScreen` → `DopaminMenu` (die eigentliche App, unverändert, bekommt `user`). So bleiben die Hooks in `DopaminMenu` unbedingt.
 - **Ablauf:** E-Mail → `signInWithOtp` → 6-stelliger Code (gilt 5 Min.) → `verifyOtp({type:"email"})`. Bei 6 Ziffern wird automatisch angemeldet. „Code erneut senden“ geht nach 60 s, die Sitzung bleibt über Neuladen erhalten.
 - **Fehlertexte** kommen aus `authErrorText()` in `logic.js` (getestet). Wichtig: Supabase meldet 5xx als `AuthRetryableFetchError`. Das ist **kein** Offline-Fehler, sondern meist ein Problem beim Mailversand. Lokal (`import.meta.env.DEV`) zeigt der Login eine technische Diagnose-Zeile ohne E-Mail-Adresse.
-- **Konto-Panel:** Personen-Icon im Header → E-Mail + „Abmelden“ (`signOut({scope:"local"})`, nur dieses Gerät). Lokale Daten bleiben vorerst erhalten.
+- **Konto-Panel:** Personen-Icon im Header → E-Mail + „Abmelden“ (`signOut({scope:"local"})`, nur dieses Gerät). Lokale Daten bleiben vorerst erhalten (Entscheidung 12.10.2026: bis Modul `cloud-sync` behalten, danach beim Abmelden löschen).
+- **Lokale Daten pro Konto:** `switchLocalOwner()` (`logic.js`, getestet) läuft in `App`, bevor die App angezeigt wird. Der Schlüssel `data_owner` merkt sich, wem die Daten gehören. Meldet sich ein anderes Konto an, werden die Daten des alten Kontos als `<schlüssel>@<user-id>` beiseitegelegt, und das neue Konto startet leer (bzw. mit seinen eigenen, früher beiseitegelegten Daten). Neue localStorage-Schlüssel mit Nutzerdaten **müssen** in `LOCAL_DATA_KEYS` eingetragen werden. `DopaminMenu` hat `key={user.id}` und wird beim Kontowechsel neu aufgebaut.
 - **Zugangsdaten:** `VITE_SUPABASE_URL` und `VITE_SUPABASE_PUBLISHABLE_KEY` in `.env.local` bzw. in Vercel (Vorlage `.env.example`). **Nie** den Secret key.
 - **Mailversand:** Supabase → Custom SMTP → **Brevo**. Fehlersuche: `docs/specs/supabase-einrichtung.md` und `python3 tools/test-brevo-smtp.py` (Code 525 = IP-Sperre in Brevo).
 
@@ -466,6 +467,7 @@ Alles in einem einzigen localStorage-Key: `dopamin_menu_v5`
 ```
 
 - Zusätzlicher Key: `onboarding_complete` (`"true"`, sobald das Onboarding abgeschlossen ist)
+- Seit v7: `data_owner` (User-ID des Kontos, dem die Daten gehören) und beiseitegelegte Daten anderer Konten als `dopamin_menu_v5@<user-id>` / `onboarding_complete@<user-id>` (siehe Login → Lokale Daten pro Konto)
 - **Beim Laden:** `tasks` wird mit `cleanTasks()` geprüft (kaputte Einträge fallen weg, fehlende Felder werden aufgefüllt). Mitgelieferte Menü-Einträge werden mit `migI()` auf den aktuellen Text gebracht, eigene bleiben unverändert.
 - **Datumsfelder im Breaker** (`deadline`, `due`) sind lokale Kalendertage als `"YYYY-MM-DD"` (Hilfsfunktionen `ymd`, `addDays`, `daysBetween`). Nie `toISOString()` für Kalendertage verwenden, das rechnet in UTC.
 

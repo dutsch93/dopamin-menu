@@ -85,3 +85,26 @@ export function authErrorText(err,online=true){
     return{kind:"email",text:"Mit dieser E-Mail-Adresse klappt es leider nicht. Prüf sie bitte noch mal."};
   return{kind:"other",text:"Da ist etwas schiefgelaufen. Versuch es bitte gleich nochmal."};
 }
+
+/* ═══ LOKALE DATEN PRO KONTO (v7, Modul identity) ═══ */
+// Die App speichert alles unter festen localStorage-Schlüsseln. Damit ein anderes Konto im selben Browser
+// nie die Daten des vorherigen Kontos sieht, merkt sich "data_owner", wem die Daten gehören.
+// Beim Kontowechsel werden die Daten des alten Kontos beiseitegelegt ("<schlüssel>@<id>") und
+// die des neuen Kontos (falls vorhanden) zurückgeholt. Muss VOR dem Laden der App laufen.
+// Rückgabe: "same" (gleiches Konto), "claimed" (erster Login übernimmt vorhandene Daten), "switched" (anderes Konto)
+export const LOCAL_DATA_KEYS=["dopamin_menu_v5","onboarding_complete"];
+export function switchLocalOwner(store,uid){
+  const owner=store.getItem("data_owner");
+  if(owner===uid)return"same";
+  for(const k of LOCAL_DATA_KEYS){
+    // Daten des bisherigen Kontos beiseitelegen
+    const v=store.getItem(k);
+    if(owner&&v!==null)store.setItem(`${k}@${owner}`,v);
+    if(owner)store.removeItem(k);
+    // Daten des neuen Kontos zurückholen (falls es hier schon mal angemeldet war)
+    const mine=store.getItem(`${k}@${uid}`);
+    if(mine!==null){store.setItem(k,mine);store.removeItem(`${k}@${uid}`);}
+  }
+  store.setItem("data_owner",uid);
+  return owner?"switched":"claimed";
+}
