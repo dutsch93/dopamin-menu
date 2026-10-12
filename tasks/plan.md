@@ -39,7 +39,7 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 - [x] Task 1: Vitest einrichten, reine Funktionen nach `src/logic.js`, Prüfskripte als echte Tests
 
 ### Checkpoint A
-- [ ] `npm test` grün, App verhält sich unverändert (kurzer Klicktest Breaker)
+- [x] `npm test` grün, App verhält sich unverändert (kurzer Klicktest Breaker)
 
 ### Phase B: Login
 - [x] Task 2: Supabase anbinden, Konfigurations-Prüfung, `.env.example`
@@ -48,9 +48,9 @@ Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit a
 - [x] Task 5: Konto-Panel im Header mit Abmelden
 
 ### Checkpoint B (Modul `identity` fertig)
-- [ ] Klicktest-Checkliste durch Anh (lokal und in der Vercel-Vorschau, auch iPhone)
-- [ ] Spezifikation abgeglichen, CLAUDE.md um „Login“ ergänzt
-- [ ] Danach: Spezifikation `cloud-sync`
+- [x] Klicktest-Checkliste durch Anh (lokal und in der Vercel-Vorschau, auch iPhone)
+- [x] Spezifikation abgeglichen, CLAUDE.md um „Login“ ergänzt
+- [x] Danach: Spezifikation `cloud-sync`
 
 ## Risiken und Gegenmaßnahmen
 

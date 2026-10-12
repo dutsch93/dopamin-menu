@@ -1,6 +1,6 @@
 # Spec: identity – Login mit E-Mail und Code
 
-*Modul 1 von 3, siehe `v7-capability-map.md`. Status: **freigegeben** am 05.10.2026*
+*Modul 1 von 3, siehe `v7-capability-map.md`. Status: **freigegeben** am 05.10.2026, **umgesetzt und abgenommen** am 12.10.2026 (Branch `feature/v7`)*
 
 ## Ziel
 
@@ -22,16 +22,16 @@ Jede Person meldet sich mit ihrer **E-Mail-Adresse und einem 6-stelligen Code** 
 
 ## Akzeptanzkriterien
 
-- [ ] Ohne gültige Sitzung ist **kein Teil der App** erreichbar (auch nicht Onboarding oder Footer)
-- [ ] E-Mail wird vor dem Senden geprüft (Format), Fehler direkt am Feld
-- [ ] Code-Feld: nur Ziffern, `inputMode="numeric"`, `autoComplete="one-time-code"` (iPhone schlägt den Code aus der Mail vor), automatische Anmeldung bei 6 Ziffern
-- [ ] „Code erneut senden“ erst nach 60 Sekunden, Countdown sichtbar
-- [ ] Alle Fehlermeldungen auf Deutsch, verständlich, ohne Fachbegriffe: falscher/abgelaufener Code, zu viele Versuche, keine Internetverbindung, unbekannter Fehler
-- [ ] Sitzung bleibt über Neuladen und Neustart erhalten (Supabase speichert sie im Browser und erneuert sie automatisch)
-- [ ] Abmelden beendet die Sitzung und zeigt den Anmelde-Bildschirm. **In diesem Modul bleiben die lokalen App-Daten beim Abmelden erhalten** (es gibt noch keine Cloud-Kopie). Ab `cloud-sync` wird das geändert.
-- [ ] Barrierefreiheit: Labels an allen Feldern, Fehler werden vorgelesen (`role="alert"`), sinnvoller Fokus nach jedem Schritt, Kontraste mind. 4,5:1, Bedienung ohne Maus möglich
-- [ ] Optik passt zur App: Fredoka, Pastellfarben, Maskottchen, Material Symbols, keine Emojis
-- [ ] Ohne konfigurierte Supabase-Zugangsdaten zeigt die App eine klare Entwickler-Meldung statt eines leeren Bildschirms
+- [x] Ohne gültige Sitzung ist **kein Teil der App** erreichbar (auch nicht Onboarding oder Footer)
+- [x] E-Mail wird vor dem Senden geprüft (Format), Fehler direkt am Feld
+- [x] Code-Feld: nur Ziffern, `inputMode="numeric"`, `autoComplete="one-time-code"` (iPhone schlägt den Code aus der Mail vor), automatische Anmeldung bei 6 Ziffern
+- [x] „Code erneut senden“ erst nach 60 Sekunden, Countdown sichtbar
+- [x] Alle Fehlermeldungen auf Deutsch, verständlich, ohne Fachbegriffe: falscher/abgelaufener Code, zu viele Versuche, keine Internetverbindung, unbekannter Fehler
+- [x] Sitzung bleibt über Neuladen und Neustart erhalten (Supabase speichert sie im Browser und erneuert sie automatisch)
+- [x] Abmelden beendet die Sitzung und zeigt den Anmelde-Bildschirm. **In diesem Modul bleiben die lokalen App-Daten beim Abmelden erhalten** (es gibt noch keine Cloud-Kopie). Ab `cloud-sync` wird das geändert.
+- [x] Barrierefreiheit: Labels an allen Feldern, Fehler werden vorgelesen (`role="alert"`), sinnvoller Fokus nach jedem Schritt, Kontraste mind. 4,5:1, Bedienung ohne Maus möglich
+- [x] Optik passt zur App: Fredoka, Pastellfarben, Maskottchen, Material Symbols, keine Emojis
+- [x] Ohne konfigurierte Supabase-Zugangsdaten zeigt die App eine klare Entwickler-Meldung statt eines leeren Bildschirms
 
 ## Tech-Stack
 
@@ -123,3 +123,7 @@ Fehlertexte kommen aus **einer** Funktion `authErrorText(error)`, die Supabase-F
 ## Offene Fragen
 
 1. **Eigene Domain:** Bis zum Livegang kommen die Mails von einer bestätigten Einzeladresse und landen oft im Spam. **Vor dem Livegang** muss eine eigene Domain gekauft und in Brevo bestätigt werden (SPF/DKIM/DMARC). Eigene Anleitung folgt.
+
+## Nachtrag 12.10.2026: Lokale Daten pro Konto
+
+Die Sicherheitsprüfung fand: Ein anderes Konto im selben Browser sah nach dem Abmelden die Daten des vorherigen Kontos. Lösung: `switchLocalOwner()` (`logic.js`) bindet die lokalen Daten an die User-ID (`data_owner`). Ein anderes Konto startet leer. Beim Abmelden bleiben die Daten bis `cloud-sync` erhalten, danach werden sie beim Abmelden gelöscht.

@@ -35,7 +35,7 @@
 
 **Akzeptanzkriterien:**
 - [x] `npm test` führt die bisherigen Fälle aus (zusammengefasst in 21 Vitest-Tests, plus Sortierung und Breaker-Daten), alle grün
-- [ ] App verhält sich unverändert (Breaker: zerlegen, abhaken; Home: Dein Fokus)
+- [x] App verhält sich unverändert (Breaker: zerlegen, abhaken; Home: Dein Fokus)
 - [x] `App.jsx` enthält die verschobenen Funktionen nicht mehr doppelt
 
 **Prüfung:** `npm test`, `npm run build`, Lint; Klicktest Breaker (Anh)
@@ -44,7 +44,7 @@
 ---
 
 ## ✅ Checkpoint A
-- [ ] Tests grün, App unverändert, Commit auf `feature/v7`
+- [x] Tests grün, App unverändert, Commit auf `feature/v7`
 
 ---
 
@@ -69,9 +69,9 @@
 **Beschreibung:** Sitzung beim Start laden (`getSession`, `onAuthStateChange`), kurzer Lade-Zustand. Ohne Sitzung nur der Login-Bildschirm: E-Mail eingeben → `signInWithOtp` → Code-Feld (Hinweis „gilt 5 Minuten“) → bei 6 Ziffern automatisch `verifyOtp` → App (bzw. Onboarding bei neuen Nutzern). Neue Funktionen in `logic.js` mit Tests: `isValidEmail`, `cleanCode`, `authErrorText`.
 
 **Akzeptanzkriterien:**
-- [ ] Ohne Sitzung ist nichts von der App sichtbar (kein Footer, kein Onboarding)
-- [ ] Neue E-Mail → nach Code ins Onboarding; bekannte E-Mail → direkt in die App, lokale Daten unverändert
-- [ ] Neuladen → weiterhin angemeldet
+- [x] Ohne Sitzung ist nichts von der App sichtbar (kein Footer, kein Onboarding)
+- [x] Neue E-Mail → nach Code ins Onboarding; bekannte E-Mail → direkt in die App, lokale Daten unverändert
+- [x] Neuladen → weiterhin angemeldet
 
 **Prüfung:** Vitest für die neuen Funktionen; Klicktest Anh (neue und bekannte E-Mail, Neuladen)
 **Abhängigkeiten:** Task 2 · **Dateien:** `src/App.jsx`, `src/logic.js`, `src/logic.test.js` · **Umfang:** M
@@ -83,9 +83,9 @@
 **Beschreibung:** „Code erneut senden“ nach 60 s mit Countdown, „Andere E-Mail-Adresse“. Freundliche Meldungen für falschen Code, abgelaufenen Code (mit direktem „Neuen Code senden“), zu viele Anfragen und offline. Labels, `role="alert"` für Fehler, Fokus nach jedem Schritt, `autoComplete="email"` bzw. `"one-time-code"`, `inputMode="numeric"`.
 
 **Akzeptanzkriterien:**
-- [ ] Jeder Fehlerfall zeigt einen deutschen Satz, und die App bleibt bedienbar
-- [ ] Countdown korrekt, Button erst danach aktiv
-- [ ] Komplett mit Tastatur bedienbar, Kontraste mind. 4,5:1
+- [x] Jeder Fehlerfall zeigt einen deutschen Satz, und die App bleibt bedienbar
+- [x] Countdown korrekt, Button erst danach aktiv
+- [x] Komplett mit Tastatur bedienbar, Kontraste mind. 4,5:1
 
 **Prüfung:** Vitest (`authErrorText`, Countdown); Klicktest Anh (falscher Code, Flugmodus, zu früh erneut senden)
 **Abhängigkeiten:** Task 3 · **Dateien:** `src/App.jsx`, `src/logic.js`, `src/logic.test.js` · **Umfang:** S
@@ -107,7 +107,7 @@
 ---
 
 ## ✅ Checkpoint B: Modul `identity` fertig
-- [ ] Klicktest-Checkliste (lokal + Vercel-Vorschau, iPhone: Code-Vorschlag der Tastatur)
+- [x] Klicktest-Checkliste (lokal + Vercel-Vorschau, iPhone: Code-Vorschlag der Tastatur)
 - [x] `SPEC-identity.md` abgeglichen, CLAUDE.md um Abschnitt „Login“ ergänzt
-- [ ] Push `feature/v7` (Vorschau). **Kein** Merge nach `main` (erst nach allen drei Modulen)
-- [ ] Danach: Spezifikation `cloud-sync`
+- [x] Push `feature/v7` (Vorschau). **Kein** Merge nach `main` (erst nach allen drei Modulen)
+- [x] Danach: Spezifikation `cloud-sync`
