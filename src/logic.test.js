@@ -1,6 +1,6 @@
 // Automatische Tests für src/logic.js. Ausführen: npm test
 import { describe, it, expect } from "vitest";
-import { ymd, addDays, daysBetween, planDue, cleanTasks, byDeadline, BREAKER_CATS, BREAKER_TO_BAT, isValidEmail, cleanCode, secondsLeft, authErrorText, switchLocalOwner } from "./logic.js";
+import { ymd, addDays, daysBetween, planDue, cleanTasks, byDeadline, BREAKER_CATS, BREAKER_TO_BAT, isValidEmail, cleanCode, secondsLeft, authErrorText, switchLocalOwner, packData, unpackData, hasRealData, dataSummary, syncDecision, sameData, keysToClear, agoText, LOCAL_DATA_KEYS } from "./logic.js";
 
 // Hilfen: n Schritte ohne Termin, und nur die Termine einer Schrittliste
 const mk = n => Array.from({ length: n }, (_, i) => ({ id: "s" + (i + 1), text: "Schritt " + (i + 1), done: false, custom: false, due: null, dueManual: false }));
@@ -210,5 +210,100 @@ describe("Lokale Daten gehören einem Konto (switchLocalOwner)", () => {
     switchLocalOwner(s, "userB");
     expect(s.getItem("dopamin_menu_v5")).toBe("B-Daten");
     expect(s.getItem("onboarding_complete")).toBeNull();
+  });
+});
+
+describe("Cloud-Sync: Paket, echte Daten, Kurzinfo", () => {
+  const DEF = ["a1", "e1", "s1"]; // IDs der mitgelieferten Menü-Einträge
+  const leer = { items: { appetizer: [{ id: "a1" }], entree: [{ id: "e1" }], side: [{ id: "s1" }] }, stars: 0, habits: [], tasks: [], customTips: {} };
+  it("packData/unpackData: hin und zurück ohne Verlust", () => {
+    const p = packData({ stars: 3, habits: [{ id: "h" }] }, true);
+    expect(p).toEqual({ stars: 3, habits: [{ id: "h" }], onboardingComplete: true });
+    expect(unpackData(JSON.parse(JSON.stringify(p)))).toEqual({ store: { stars: 3, habits: [{ id: "h" }] }, onboardingComplete: true });
+  });
+  it("packData ohne gespeicherte Daten", () => {
+    expect(packData(null, false)).toEqual({ onboardingComplete: false });
+  });
+  it("unpackData: Kaputtes wird abgelehnt", () => {
+    for (const bad of [null, undefined, "x", 5, [1, 2]]) expect(unpackData(bad)).toBeNull();
+  });
+  it("hasRealData: leere Standard-Daten zählen nicht", () => {
+    expect(hasRealData(null, DEF)).toBe(false);
+    expect(hasRealData(packData(leer, false), DEF)).toBe(false);
+    expect(hasRealData({ onboardingComplete: false }, DEF)).toBe(false);
+  });
+  it("hasRealData: Sterne, Habits, Meilensteine, eigene Tipps, eigene Menü-Einträge, Onboarding zählen", () => {
+    expect(hasRealData({ ...leer, stars: 1 }, DEF)).toBe(true);
+    expect(hasRealData({ ...leer, habits: [{ id: "h" }] }, DEF)).toBe(true);
+    expect(hasRealData({ ...leer, tasks: [{ id: "t" }] }, DEF)).toBe(true);
+    expect(hasRealData({ ...leer, customTips: { start: [{ id: "c" }] } }, DEF)).toBe(true);
+    expect(hasRealData({ ...leer, customTips: { start: [] } }, DEF)).toBe(false);
+    expect(hasRealData({ ...leer, items: { ...leer.items, side: [{ id: "s1" }, { id: "eigen" }] } }, DEF)).toBe(true);
+    expect(hasRealData({ ...leer, onboardingComplete: true }, DEF)).toBe(true);
+  });
+  it("dataSummary zählt Meilensteine, Habits und Sterne", () => {
+    expect(dataSummary({ tasks: [{}, {}], habits: [{}], stars: 40 })).toEqual({ tasks: 2, habits: 1, stars: 40 });
+    expect(dataSummary(null)).toEqual({ tasks: 0, habits: 0, stars: 0 });
+  });
+});
+
+describe("Cloud-Sync: syncDecision (Tabelle in SPEC-cloud-sync.md)", () => {
+  const DEF = [];
+  const voll = { stars: 5, onboardingComplete: true };
+  const T1 = "2026-10-22T10:00:00.000000+00:00", T2 = "2026-10-22T11:00:00.000000+00:00";
+  const remote = (data, updated_at = T1) => ({ data, updated_at });
+  it("Gerät leer, Konto leer → frisch", () => {
+    expect(syncDecision(null, null, null, DEF)).toBe("fresh");
+    expect(syncDecision(null, null, remote({ onboardingComplete: false }), DEF)).toBe("fresh");
+  });
+  it("Gerät hat Daten (nie abgeglichen), Konto leer → hochladen", () => {
+    expect(syncDecision(voll, null, null, DEF)).toBe("upload");
+    expect(syncDecision(voll, null, remote({}), DEF)).toBe("upload");
+  });
+  it("Gerät leer, Konto hat Daten → herunterladen", () => {
+    expect(syncDecision(null, null, remote(voll), DEF)).toBe("download");
+    expect(syncDecision({ onboardingComplete: false }, null, remote(voll), DEF)).toBe("download");
+  });
+  it("beide haben Daten, Gerät nie mit diesem Konto abgeglichen → nachfragen", () => {
+    expect(syncDecision(voll, null, remote(voll), DEF)).toBe("ask");
+    expect(syncDecision(voll, { dirty: true, changedAt: "2026-10-22T12:00:00.000Z" }, remote(voll), DEF)).toBe("ask");
+  });
+  it("abgeglichen, nichts Ungesichertes: Konto neuer → runter, gleich → nichts", () => {
+    expect(syncDecision(voll, { dirty: false, syncedAt: T1 }, remote(voll, T2), DEF)).toBe("download");
+    expect(syncDecision(voll, { dirty: false, syncedAt: T1 }, remote(voll, T1), DEF)).toBe("same");
+  });
+  it("abgeglichen, Ungesichertes da, Konto unverändert → hochladen", () => {
+    expect(syncDecision(voll, { dirty: true, syncedAt: T1, changedAt: "2026-10-22T09:00:00.000Z" }, remote(voll, T1), DEF)).toBe("upload");
+  });
+  it("beide geändert → der neuere gewinnt (auch bei unterschiedlichem Zeitformat)", () => {
+    expect(syncDecision(voll, { dirty: true, syncedAt: T1, changedAt: "2026-10-22T11:30:00.000Z" }, remote(voll, T2), DEF)).toBe("upload");
+    expect(syncDecision(voll, { dirty: true, syncedAt: T1, changedAt: "2026-10-22T10:30:00.000Z" }, remote(voll, T2), DEF)).toBe("download");
+  });
+  it("abgeglichen, aber Konto inzwischen leer (z.B. Zeile entfernt) → hochladen", () => {
+    expect(syncDecision(voll, { dirty: false, syncedAt: T1 }, null, DEF)).toBe("upload");
+  });
+});
+
+describe("Cloud-Sync: Hilfen", () => {
+  it("sameData: Reihenfolge der Felder egal (die Datenbank sortiert sie um)", () => {
+    expect(sameData({ a: 1, b: { c: 2, d: [1, { e: 3, f: 4 }] } }, { b: { d: [1, { f: 4, e: 3 }], c: 2 }, a: 1 })).toBe(true);
+    expect(sameData({ a: 1 }, { a: 2 })).toBe(false);
+    expect(sameData({ a: [1, 2] }, { a: [2, 1] })).toBe(false); // Listen-Reihenfolge zählt
+    expect(sameData(null, null)).toBe(true);
+  });
+  it("sync_meta gehört zu den Nutzerdaten (wird beim Kontowechsel mit beiseitegelegt)", () => {
+    expect(LOCAL_DATA_KEYS).toContain("sync_meta");
+  });
+  it("keysToClear: alle Nutzerdaten inkl. alter Reste anderer Konten, aber nichts Fremdes", () => {
+    const all = ["dopamin_menu_v5", "onboarding_complete", "sync_meta", "data_owner", "dopamin_menu_v5@u1", "onboarding_complete@u2", "sync_meta@u1", "sb-abc-auth-token", "andere_app"];
+    expect(keysToClear(all).sort()).toEqual(["data_owner", "dopamin_menu_v5", "dopamin_menu_v5@u1", "onboarding_complete", "onboarding_complete@u2", "sync_meta", "sync_meta@u1"]);
+  });
+  it("agoText: freundliche Zeitangabe", () => {
+    const now = new Date(2026, 9, 22, 14, 0).getTime();
+    expect(agoText(now - 20_000, now)).toBe("gerade eben");
+    expect(agoText(now - 2 * 60_000, now)).toBe("vor 2 Min.");
+    expect(agoText(now - 3 * 3600_000, now)).toBe("vor 3 Std.");
+    expect(agoText(new Date(2026, 9, 18, 9, 0).getTime(), now)).toBe("am 18.10.");
+    expect(agoText(null, now)).toBe("");
   });
 });

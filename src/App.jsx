@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react";
 // Reine Rechen-Funktionen und Breaker-Daten liegen in logic.js (dort mit Tests)
-import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline, isValidEmail, cleanCode, secondsLeft, authErrorText, switchLocalOwner } from "./logic.js";
+import { ymd, addDays, daysBetween, planDue, fmtDay, BREAKER_CATS, cleanTasks, BREAKER_TO_BAT, byDeadline, isValidEmail, cleanCode, secondsLeft, authErrorText, switchLocalOwner, packData, unpackData, syncDecision, sameData, keysToClear, agoText, dataSummary, hasRealData } from "./logic.js";
 import { createClient } from "@supabase/supabase-js";
 
 /* ═══ SUPABASE (Konto & Login, ab v7) ═══ */
@@ -101,14 +101,103 @@ function buildNotifications(habits,settings){
 }
 
 /* ═══ STORAGE ═══ */
-const SK="dopamin_menu_v5";const ld=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};const sv=d=>{try{localStorage.setItem(SK,JSON.stringify(d));}catch{}};const defI=()=>{const it={};Object.values(CATEGORIES).forEach(c=>{it[c.key]=[...c.defaults];});return it;};
+const SK="dopamin_menu_v5";const ld=()=>{try{const r=localStorage.getItem(SK);return r?JSON.parse(r):null;}catch{return null;}};const sv=d=>{try{const old=ld();localStorage.setItem(SK,JSON.stringify(d));if(!sameData(old,d))cloud.changed();}catch{/* Speicher voll oder gesperrt */}};const defI=()=>{const it={};Object.values(CATEGORIES).forEach(c=>{it[c.key]=[...c.defaults];});return it;};
 // Mitgelieferte Menü-Einträge immer mit dem aktuellen Text laden (z.B. nach dem Entfernen der Emojis). Eigene Einträge bleiben unverändert.
 const migI=it=>{if(!it)return defI();const o={};Object.values(CATEGORIES).forEach(c=>{o[c.key]=(it[c.key]||[]).map(x=>c.defaults.find(d=>d.id===x.id)||x);});return o;};
+
+/* ═══ CLOUD-SYNC (v7, Modul cloud-sync) ═══ */
+// Der Browser bleibt die erste Speicherstelle. Zusätzlich wird alles in der Supabase-Tabelle app_data gesichert
+// (eine Zeile pro Konto). Ablauf und Entscheidungen: docs/specs/SPEC-cloud-sync.md, reine Logik in logic.js.
+// sync_meta im Browser: {dirty: noch nicht gesichert, changedAt: letzte Änderung, syncedAt: Konto-Stand (updated_at), okAt: letzte erfolgreiche Sicherung}
+const META="sync_meta";
+const readMeta=()=>{try{return JSON.parse(localStorage.getItem(META))||{};}catch{return{};}};
+const writeMeta=m=>{try{localStorage.setItem(META,JSON.stringify(m));}catch{/* egal */}};
+const defaultItemIds=()=>Object.values(CATEGORIES).flatMap(c=>c.defaults.map(d=>d.id));
+// Paket aus dem Browser-Speicher bauen bzw. ein Paket aus dem Konto in den Browser schreiben
+const localPkg=()=>packData(ld(),localStorage.getItem("onboarding_complete")==="true");
+const applyPkg=pkg=>{const u=unpackData(pkg);if(!u)return false;
+  localStorage.setItem(SK,JSON.stringify(u.store));
+  if(u.onboardingComplete)localStorage.setItem("onboarding_complete","true");else localStorage.removeItem("onboarding_complete");
+  return true;};
+const fetchRow=uid=>supabase.from("app_data").select("data,updated_at").eq("user_id",uid).maybeSingle();
+
+// Steuerung außerhalb von React: merkt Änderungen, lädt 2 s später hoch, meldet den Status an das Konto-Panel.
+// status.state: "ok" (alles gesichert) · "pending" (wartet/lädt hoch) · "offline" · "error"
+const cloud={
+  uid:null,timer:null,retry:null,busy:false,subs:new Set(),
+  status:{state:"ok",okAt:null},
+  set(st){this.status={...this.status,...st};this.subs.forEach(f=>f(this.status));},
+  start(uid){this.uid=uid;this.set({state:readMeta().dirty?"pending":"ok",okAt:readMeta().okAt||null});},
+  stop(){this.uid=null;clearTimeout(this.timer);clearTimeout(this.retry);},
+  // Etwas wurde geändert (aus sv): merken und 2 s nach der letzten Änderung hochladen
+  changed(){
+    if(!this.uid)return;
+    writeMeta({...readMeta(),dirty:true,changedAt:new Date().toISOString()});
+    if(this.status.state!=="offline")this.set({state:"pending"});
+    clearTimeout(this.timer);this.timer=setTimeout(()=>this.push(),2000);
+  },
+  // Hochladen. Ergebnis: true = alles gesichert
+  async push(){
+    clearTimeout(this.timer);
+    const uid=this.uid,m=readMeta();
+    if(!uid)return false;
+    if(!m.dirty){this.set({state:"ok"});return true;}
+    if(this.busy)return false;
+    this.busy=true;this.set({state:"pending"});
+    const{data,error}=await supabase.from("app_data").upsert({user_id:uid,data:localPkg()}).select("updated_at").single();
+    this.busy=false;
+    if(uid!==this.uid)return false; // inzwischen abgemeldet
+    if(error){
+      this.set({state:navigator.onLine?"error":"offline"});
+      clearTimeout(this.retry);this.retry=setTimeout(()=>this.push(),30000); // später nochmal versuchen
+      return false;
+    }
+    // Kam während des Hochladens eine neue Änderung, bleibt dirty stehen und es wird gleich nochmal hochgeladen
+    const m2=readMeta(),more=m2.changedAt!==m.changedAt,okAt=Date.now();
+    writeMeta({...m2,dirty:more,syncedAt:data.updated_at,okAt});
+    this.set({state:more?"pending":"ok",okAt});
+    if(more)this.timer=setTimeout(()=>this.push(),2000);
+    return!more;
+  },
+  // Vor dem Abmelden: alles Ausstehende jetzt sichern. Ergebnis: true = nichts mehr offen
+  async flush(){
+    for(let i=0;i<30;i++){
+      if(!readMeta().dirty)return true;
+      if(this.busy){await new Promise(r=>setTimeout(r,300));continue;} // laufenden Upload abwarten
+      if(!(await this.push())&&!this.busy&&this.status.state!=="pending")return false; // Fehler oder offline
+    }
+    return!readMeta().dirty;
+  },
+};
+// Status im React-Teil verwenden (Konto-Panel, Header-Wolke)
+const subscribeCloud=f=>{cloud.subs.add(f);return()=>{cloud.subs.delete(f);};};
+const useCloudStatus=()=>useSyncExternalStore(subscribeCloud,()=>cloud.status);
+// Beim Start (nach dem Login, vor der App): Konto-Stand holen und entscheiden.
+// Ergebnis: {go:true} = App kann starten, {ask:{local,remote}} = Auswahl-Dialog zeigen
+async function startSync(uid){
+  cloud.start(uid);
+  // Höchstens 8 s warten, sonst gilt es als "keine Verbindung"
+  const{data:row,error}=await Promise.race([fetchRow(uid),new Promise(r=>setTimeout(()=>r({error:{timeout:true}}),8000))]);
+  const local=localPkg(),meta=readMeta();
+  if(error){
+    cloud.set({state:navigator.onLine?"error":"offline"});
+    // Gerät hat Daten (oder war schon abgeglichen): damit starten, später wird gesichert.
+    // Gerät leer: NICHT starten – sonst würde ein neues Onboarding die Daten im Konto überschreiben.
+    return hasRealData(local,defaultItemIds())||meta.syncedAt?{go:true}:{retry:true};
+  }
+  const d=syncDecision(local,meta,row,defaultItemIds());
+  if(d==="ask")return{ask:{local,remote:row}};
+  if(d==="download"&&applyPkg(row.data))writeMeta({dirty:false,syncedAt:row.updated_at,okAt:Date.now()});
+  if(d==="upload"){writeMeta({...meta,dirty:true,changedAt:meta.changedAt||new Date().toISOString()});cloud.push();}
+  if(d==="same"){writeMeta({...meta,okAt:Date.now()});cloud.set({state:"ok",okAt:Date.now()});}
+  if(d==="download")cloud.set({state:"ok",okAt:Date.now()});
+  return{go:true};
+}
 
 /* ═══ ICONS (Google Material Symbols Rounded, gefüllt) ═══ */
 // Google liefert nur die Icons aus dieser Liste aus – so bleibt die Schrift klein.
 // Neues Icon verwenden? -> Namen hier ergänzen. Alle Namen: https://fonts.google.com/icons
-const ICON_NAMES=["ac_unit","account_circle","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","event_busy","expand_more","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","hourglass_top","key","label","lightbulb","local_fire_department","location_on","logout","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
+const ICON_NAMES=["ac_unit","account_circle","add","air","alarm","auto_awesome","battery_charging_full","battery_low","bedtime","bolt","calendar_month","campaign","casino","celebration","chair","check","check_circle","cleaning_services","close","cloud_done","cloud_off","coffee","counter_3","cyclone","delete","directions_run","eco","edit","edit_note","event_busy","expand_more","extension","fast_rewind","favorite","fitness_center","group","headphones","healing","home","hourglass_bottom","hourglass_top","key","label","lightbulb","local_fire_department","location_on","logout","medical_services","menu_book","mobile_off","monetization_on","music_note","notifications","nutrition","palette","park","photo_camera","pinch","psychology","push_pin","record_voice_over","redeem","repeat","restaurant","savings","science","self_improvement","sentiment_stressed","settings","smartphone","spa","star","sticky_note_2","target","thermostat","timer","volunteer_activism","work"];
 const ICON_URL="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,500,1,0&icon_names="+[...ICON_NAMES].sort().join(",")+"&display=block";
 // Ein Icon. Rein dekorativ (aria-hidden) – daneben muss immer ein sichtbarer Text stehen.
 const Icon=({name,color,size=20,style})=>(<span className="material-symbols-rounded" aria-hidden="true" style={{fontSize:size,lineHeight:1,color,...style}}>{name}</span>);
@@ -172,8 +261,19 @@ function DopaminMenu({user}){
   const[showNotifs,setShowNotifs]=useState(false);const[showNotifSettings,setShowNotifSettings]=useState(false);
   // Konto-Panel (v7): E-Mail anzeigen, Abmelden
   const[showAccount,setShowAccount]=useState(false);const[signingOut,setSigningOut]=useState(false);
-  // Abmelden nur auf DIESEM Gerät (scope "local", klappt auch offline). Lokale App-Daten bleiben vorerst erhalten (Modul cloud-sync ändert das).
-  const signOut=async()=>{setSigningOut(true);await supabase.auth.signOut({scope:"local"});setSigningOut(false);};
+  // Sicherungs-Status (cloud-sync) und Rückfrage, wenn beim Abmelden noch etwas ungesichert ist
+  const cs=useCloudStatus();const[unsaved,setUnsaved]=useState(false);
+  const csText=cs.state==="offline"?"Offline – wird gesichert, sobald du wieder online bist"
+    :cs.state==="error"?"Sichern hat gerade nicht geklappt. Die App versucht es gleich nochmal."
+    :cs.state==="pending"?"Wird gesichert …":`Alles gesichert${cs.okAt?" · "+agoText(cs.okAt):""}`;
+  // Abmelden nur auf DIESEM Gerät (scope "local"). Vorher alles sichern, danach die Daten im Browser löschen
+  // (Entscheidung 21.10.2026). force = trotz ungesicherter Änderungen abmelden (nach Rückfrage).
+  const signOut=async force=>{setSigningOut(true);
+    if(force!==true&&!(await cloud.flush())){setSigningOut(false);setUnsaved(true);return;}
+    cloud.stop();
+    await supabase.auth.signOut({scope:"local"});
+    try{keysToClear(Object.keys(localStorage)).forEach(k=>localStorage.removeItem(k));}catch{/* Speicher gesperrt */}
+  };
   const[notifications,setNotifications]=useState([]);
   const timerRef=useRef(null);
 
@@ -197,6 +297,7 @@ function DopaminMenu({user}){
 
   const finishOnboarding = () => {
     localStorage.setItem("onboarding_complete", "true");
+    cloud.changed(); // v7: auch den Onboarding-Abschluss sichern
 
     // Sort CatOrder based on preferences
     const newOrder = [...catOrder];
@@ -495,6 +596,10 @@ function DopaminMenu({user}){
           <button style={{...S.stat,cursor:"pointer",border:"none",position:"relative"}} aria-label="Benachrichtigungen" aria-expanded={showNotifs} onClick={()=>{setShowNotifs(!showNotifs);setShowAccount(false);setShowNotifSettings(false);requestNotifPermission();}}>
             <Icon name="notifications" color="#9B6FCF" size={18}/>{urgentNotifs.length>0&&<span style={S.notifBadge}>{urgentNotifs.length}</span>}
           </button>
+          {/* Wolke (cloud-sync): nur sichtbar, wenn etwas nicht gesichert werden konnte */}
+          {(cs.state==="offline"||cs.state==="error")&&<button style={{...S.stat,cursor:"pointer",border:"none"}} aria-label={cs.state==="offline"?"Offline, noch nicht gesichert":"Noch nicht gesichert"} onClick={()=>{setShowAccount(true);setShowNotifs(false);}}>
+            <Icon name="cloud_off" color="#E8876F" size={18}/>
+          </button>}
           {/* Konto (v7) */}
           <button style={{...S.stat,cursor:"pointer",border:"none"}} aria-label="Konto" aria-expanded={showAccount} onClick={()=>{setShowAccount(!showAccount);setShowNotifs(false);}}>
             <Icon name="account_circle" color="#5BA3C0" size={19}/>
@@ -506,10 +611,17 @@ function DopaminMenu({user}){
       {showAccount&&<div style={S.notifPanel} role="dialog" aria-label="Dein Konto">
         <h3 style={{fontSize:15,fontWeight:700,color:"#5B4A6A",display:"flex",alignItems:"center",gap:6,marginBottom:10}}><Icon name="account_circle" color="#5BA3C0" size={20}/>Dein Konto</h3>
         <p style={{fontSize:13,color:"#5B4A6A",lineHeight:1.5}}>Angemeldet als<br/><b style={{overflowWrap:"anywhere"}}>{user?.email||"–"}</b></p>
-        <button style={{...S.loginBtn,display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",opacity:signingOut?.7:1}} disabled={signingOut} aria-busy={signingOut} onClick={signOut}>
-          <Icon name="logout" color="#fff" size={18}/>{signingOut?"Einen Moment…":"Abmelden"}
-        </button>
-        <p style={{fontSize:11,color:"#6B5F7F",marginTop:8,lineHeight:1.4}}>Du wirst nur auf diesem Gerät abgemeldet. Deine Daten auf diesem Gerät bleiben erhalten.</p>
+        <p role="status" aria-live="polite" style={{fontSize:12.5,color:"#5B4A6A",lineHeight:1.4,display:"flex",alignItems:"center",gap:6,margin:"8px 0 4px"}}>
+          <Icon name={cs.state==="offline"||cs.state==="error"?"cloud_off":"cloud_done"} color={cs.state==="offline"||cs.state==="error"?"#E8876F":"#5BA3C0"} size={18}/>{csText}
+        </p>
+        {unsaved?<>
+          <p role="alert" style={S.loginErr}>Deine letzten Änderungen sind noch nicht gesichert. Wenn du dich jetzt abmeldest, gehen sie verloren.</p>
+          <button style={{...S.loginBtn,width:"100%",background:"#B83A3A",opacity:signingOut?.7:1}} disabled={signingOut} aria-busy={signingOut} onClick={()=>signOut(true)}>{signingOut?"Einen Moment…":"Trotzdem abmelden"}</button>
+          <div style={{display:"flex",justifyContent:"center"}}><button style={S.loginLink} onClick={()=>setUnsaved(false)}>Abbrechen</button></div>
+        </>:<button style={{...S.loginBtn,display:"flex",alignItems:"center",justifyContent:"center",gap:6,width:"100%",opacity:signingOut?.7:1}} disabled={signingOut} aria-busy={signingOut} onClick={()=>signOut()}>
+          <Icon name="logout" color="#fff" size={18}/>{signingOut?"Wird gesichert…":"Abmelden"}
+        </button>}
+        <p style={{fontSize:11,color:"#6B5F7F",marginTop:8,lineHeight:1.4}}>Du wirst nur auf diesem Gerät abgemeldet. Deine Daten bleiben in deinem Konto gesichert und werden von diesem Gerät entfernt.</p>
       </div>}
 
       {/* NOTIFICATION PANEL */}
@@ -1036,30 +1148,121 @@ function LoginScreen(){
 
 /* ═══ HÜLLE: prüft Konfiguration und Anmeldung, bevor die App erscheint ═══ */
 // Eigene Komponente, damit DopaminMenu seine Hooks immer vollständig ausführt (React-Regel: Hooks nie bedingt aufrufen).
+// Auswahl, wenn Gerät und Konto unabhängig voneinander Daten haben (SPEC-cloud-sync, Story 6)
+function ConflictScreen({ask,onPick}){
+  const[pick,setPick]=useState(null); // null = Auswahl, "device"/"account" = Rückfrage
+  const[busy,setBusy]=useState(false);
+  const head=useRef(null);
+  useEffect(()=>{head.current?.focus();},[pick]);
+  const n=(k,one,many)=>`${k} ${k===1?one:many}`;
+  const line=p=>{const x=dataSummary(p);return`${n(x.tasks,"Meilenstein","Meilensteine")} · ${n(x.habits,"Habit","Habits")} · ${n(x.stars,"Stern","Sterne")}`;};
+  const d=new Date(ask.remote.updated_at);
+  const when=isNaN(d)?"":` · zuletzt geändert am ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.`;
+  const opts=[
+    {id:"device",icon:"smartphone",color:"#D9709A",title:"Auf diesem Gerät",info:line(ask.local)},
+    {id:"account",icon:"cloud_done",color:"#5BA3C0",title:"In deinem Konto",info:line(ask.remote.data)+when},
+  ];
+  const chosen=opts.find(o=>o.id===pick),other=opts.find(o=>o.id!==pick);
+  return(
+    <main style={S.loginWrap}>
+      <div style={S.loginCard} role="dialog" aria-modal="true" aria-labelledby="cf-title">
+        <div style={{display:"flex",justifyContent:"center"}}><Octopus size={56}/></div>
+        {!pick?<>
+          <h1 id="cf-title" ref={head} tabIndex={-1} style={{...S.loginTitle,fontSize:20}}>Welche Daten möchtest du behalten?</h1>
+          <p style={S.loginText}>Auf diesem Gerät und in deinem Konto liegen unterschiedliche Daten. Wähle einen der beiden Stände.</p>
+          {opts.map(o=>(<button key={o.id} style={S.cfOpt} onClick={()=>setPick(o.id)}>
+            <Icon name={o.icon} color={o.color} size={26}/>
+            <span style={{display:"flex",flexDirection:"column",gap:2}}><b style={{fontSize:15}}>{o.title}</b><span style={{fontSize:12.5,lineHeight:1.4}}>{o.info}</span></span>
+          </button>))}
+        </>:<>
+          <h1 id="cf-title" ref={head} tabIndex={-1} style={{...S.loginTitle,fontSize:20}}>Sicher?</h1>
+          <p style={S.loginText}>Du behältst die Daten <b>{chosen.title.toLowerCase()}</b>. Die Daten <b>{other.title.toLowerCase()}</b> ({other.info.split(" · zuletzt")[0]}) werden gelöscht. Das kann man nicht rückgängig machen.</p>
+          <button style={{...S.loginBtn,opacity:busy?.7:1}} disabled={busy} aria-busy={busy} onClick={async()=>{setBusy(true);await onPick(pick);}}>{busy?"Einen Moment…":"Ja, so machen"}</button>
+          <div style={{display:"flex",justifyContent:"center"}}><button style={S.loginLink} disabled={busy} onClick={()=>setPick(null)}>Zurück</button></div>
+        </>}
+      </div>
+    </main>
+  );
+}
+
+// Neues/leeres Gerät, aber der Konto-Stand ließ sich nicht laden: lieber warten als mit leeren Daten starten
+function SyncRetryScreen({onRetry}){
+  const[busy,setBusy]=useState(false);
+  return(
+    <main style={S.loginWrap}>
+      <div style={S.loginCard} role="alert">
+        <div style={{display:"flex",justifyContent:"center"}}><Icon name="cloud_off" color="#5BA3C0" size={44}/></div>
+        <h1 style={{...S.loginTitle,fontSize:20}}>Deine Daten konnten nicht geladen werden</h1>
+        <p style={S.loginText}>Prüf bitte deine Internetverbindung und versuch es nochmal.</p>
+        <button style={{...S.loginBtn,opacity:busy?.7:1}} disabled={busy} aria-busy={busy} onClick={async()=>{setBusy(true);await onRetry();setBusy(false);}}>{busy?"Einen Moment…":"Nochmal versuchen"}</button>
+      </div>
+    </main>
+  );
+}
+
 export default function App(){
   // undefined = Sitzung wird noch geladen, null = nicht angemeldet, Objekt = angemeldet
   const[session,setSession]=useState(undefined);
+  // Ergebnis des Start-Abgleichs für ein Konto: {uid, go} | {uid, ask} | {uid, retry}. Gehört es nicht zum aktuellen Konto, läuft der Abgleich noch.
+  const[sync,setSync]=useState({uid:null});
+  // Wird erhöht, wenn ein neuerer Stand aus dem Konto übernommen wurde → App baut sich neu auf und liest ihn
+  const[gen,setGen]=useState(0);
+  const uid=session?.user?.id||null;
+
+  // Start-Abgleich mit dem Konto, sobald jemand angemeldet ist (einmal pro Konto, nicht bei jeder Sitzungs-Erneuerung)
+  const runSync=useCallback(async u=>{const r=await startSync(u);setSync({uid:u,...r});},[]);
+  const syncedFor=useRef(null);
+
   useEffect(()=>{if(!supabase)return;
     // Vor dem Anzeigen: lokale Daten dem angemeldeten Konto zuordnen. Ein anderes Konto im selben Browser
     // startet so leer und sieht nie die Daten des vorherigen Kontos (siehe switchLocalOwner in logic.js).
-    const take=s=>{if(s?.user){try{switchLocalOwner(localStorage,s.user.id);}catch{/* Speicher gesperrt: dann gibt es auch keine Daten */}}setSession(s);};
+    const take=s=>{const u=s?.user?.id||null;
+      if(u){try{switchLocalOwner(localStorage,u);}catch{/* Speicher gesperrt: dann gibt es auch keine Daten */}}else cloud.stop();
+      if(u&&syncedFor.current!==u)runSync(u);
+      syncedFor.current=u;setSession(s);};
     supabase.auth.getSession().then(({data})=>take(data.session));
     // Supabase meldet An-/Abmeldung und erneuert die Sitzung automatisch (bleibt über Neuladen erhalten)
     const{data:{subscription}}=supabase.auth.onAuthStateChange((_ev,s)=>take(s));
-    return()=>subscription.unsubscribe();},[]);
+    return()=>subscription.unsubscribe();},[runSync]);
 
-  if(!supabase)return(<><style>{GLOBAL_CSS}</style>
+  // Während der Nutzung: zurück in die App → neueren Konto-Stand holen; App verlassen → sofort sichern; wieder online → sichern
+  useEffect(()=>{if(!uid)return;
+    const onVis=async()=>{
+      if(document.visibilityState==="hidden"||readMeta().dirty){if(readMeta().dirty)cloud.push();return;}
+      const{data:row,error}=await fetchRow(uid);
+      if(error||cloud.uid!==uid||readMeta().dirty)return;
+      if(syncDecision(localPkg(),readMeta(),row,defaultItemIds())==="download"&&applyPkg(row.data)){
+        const okAt=Date.now();writeMeta({dirty:false,syncedAt:row.updated_at,okAt});cloud.set({state:"ok",okAt});setGen(g=>g+1);}
+    };
+    const onOnline=()=>cloud.push();
+    const onOffline=()=>{if(readMeta().dirty)cloud.set({state:"offline"});};
+    document.addEventListener("visibilitychange",onVis);window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);
+    return()=>{document.removeEventListener("visibilitychange",onVis);window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);};
+  },[uid]);
+
+  // Auswahl-Dialog: Gerät behalten → hochladen (überschreibt das Konto), Konto behalten → aufs Gerät holen
+  const resolveConflict=async pick=>{const{remote}=sync.ask;
+    if(pick==="device"){writeMeta({...readMeta(),dirty:true,changedAt:new Date().toISOString(),syncedAt:remote.updated_at});await cloud.push();}
+    else if(applyPkg(remote.data)){const okAt=Date.now();writeMeta({dirty:false,syncedAt:remote.updated_at,okAt});cloud.set({state:"ok",okAt});}
+    setSync({uid,go:true});};
+
+  const shell=c=><><style>{GLOBAL_CSS}</style>{c}</>;
+  const loading=shell(<div style={S.cfgWrap} role="status" aria-label="Wird geladen"><div style={{animation:"float 1.5s ease-in-out infinite"}}><Octopus size={64} animate/></div></div>);
+  if(!supabase)return shell(
     <div style={S.cfgWrap} role="alert">
       <Octopus size={70}/>
       <h1 style={S.cfgTitle}>Supabase ist nicht eingerichtet</h1>
       <p style={S.cfgText}>Für Entwickler: Es fehlen <code>VITE_SUPABASE_URL</code> und/oder <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.</p>
       <p style={S.cfgText}>Lokal in <code>.env.local</code> eintragen (Vorlage: <code>.env.example</code>), auf Vercel unter Settings → Environment Variables. Danach den Entwicklungsserver neu starten.</p>
-    </div></>
+    </div>
   );
   // Kurzer Lade-Zustand, damit der Login-Bildschirm nicht aufblitzt, wenn man schon angemeldet ist
-  if(session===undefined)return(<><style>{GLOBAL_CSS}</style><div style={S.cfgWrap} role="status" aria-label="Wird geladen"><div style={{animation:"float 1.5s ease-in-out infinite"}}><Octopus size={64} animate/></div></div></>);
-  if(!session)return <><style>{GLOBAL_CSS}</style><LoginScreen/></>;
-  return <><style>{GLOBAL_CSS}</style><DopaminMenu key={session.user.id} user={session.user}/></>;
+  if(session===undefined)return loading;
+  if(!session)return shell(<LoginScreen/>);
+  if(sync.uid!==uid)return loading; // Abgleich mit dem Konto läuft
+  if(sync.ask)return shell(<ConflictScreen ask={sync.ask} onPick={resolveConflict}/>);
+  if(sync.retry)return shell(<SyncRetryScreen onRetry={()=>runSync(uid)}/>);
+  return shell(<DopaminMenu key={uid+":"+gen} user={session.user}/>);
 }
 
 /* ═══ STYLES ═══ */
@@ -1080,6 +1283,8 @@ const S={
   loginHint:{fontSize:11.5,color:"#6B5F7F",textAlign:"center"},
   loginErr:{fontSize:13,fontWeight:600,color:"#9E2F2F",background:"#FDE8E6",borderRadius:12,padding:"8px 12px",lineHeight:1.4},
   loginBtn:{border:"none",borderRadius:14,padding:"13px 20px",marginTop:6,background:"#7A52B3",color:"#fff",fontSize:15,fontWeight:700,fontFamily:"'Fredoka',sans-serif",cursor:"pointer"},
+  // Auswahl-Dialog (cloud-sync)
+  cfOpt:{width:"100%",textAlign:"left",border:"2px solid #E4D4F4",borderRadius:16,background:"#fff",padding:"12px 14px",fontFamily:"'Fredoka',sans-serif",color:"#5B4A6A",cursor:"pointer",display:"flex",gap:12,alignItems:"center",marginTop:4},
   loginLink:{background:"none",border:"none",padding:"6px 0",fontSize:12.5,fontWeight:600,fontFamily:"'Fredoka',sans-serif",color:"#7A52B3",cursor:"pointer",textDecoration:"underline"},
   wrap:{fontFamily:"'Fredoka',sans-serif",background:"linear-gradient(180deg,#FFF5E4,#FFF0F5 50%,#F0F5FF)",minHeight:"100vh",padding:"0 0 calc(84px + env(safe-area-inset-bottom))",position:"relative",overflowX:"hidden",maxWidth:900,margin:"0 auto"},
   hdr:{textAlign:"center",padding:"18px 20px 9px",background:"linear-gradient(180deg,#FFFAF0,transparent)"},hdrTop:{display:"flex",alignItems:"center",justifyContent:"center",gap:9},

@@ -1,113 +1,48 @@
-# Aufgaben v7 – Modul `identity`
+# Aufgaben v7 – Modul `cloud-sync`
 
-*Übersicht und Begründungen: `tasks/plan.md` · Spezifikation: `docs/specs/SPEC-identity.md`*
+*Plan: `tasks/plan.md` · Spezifikation: `docs/specs/SPEC-cloud-sync.md`*
+*Vor jedem Commit: `npm test`, `npm run build`, `npm run lint` (max. 6 Fehler / 2 Warnungen)*
 
-**Standard-Prüfung für jede Aufgabe:**
-- `npm test` grün
-- `npm run build` ohne Fehler
-- `npm run lint`: nicht mehr Meldungen als der Ausgangswert (6 Fehler, 2 Warnungen in altem Code)
-- Keine Emojis, alle Icons in `ICON_NAMES`
-- `git grep -nE "sb_secret_|sb_publishable_[A-Za-z0-9]|service_role|eyJ[A-Za-z0-9]" -- ':!.env.example' ':!docs'` findet keinen Schlüssel
-- Texte und Kommentare auf Deutsch
+## Task 0: Tabelle anlegen (Anh)
+- [ ] Schritt 8 der Anleitung `docs/specs/supabase-einrichtung.md` ausgeführt
+- [ ] Prüfabfrage zeigt: Row Level Security ist an, 3 Regeln vorhanden
 
----
+## Task 1: Reine Sync-Logik (`logic.js`)
+- [x] `hasRealData`: leere Standard-Daten zählen nicht als Daten
+- [x] `dataSummary`: Meilensteine, Habits, Sterne für den Dialog
+- [x] `syncDecision`: alle Fälle der Tabelle in der Spezifikation getestet
+- [x] `packData` / `unpackData`: Paket hin und zurück ohne Verlust, kaputte Daten abgefangen
+- Dateien: `src/logic.js`, `src/logic.test.js`
 
-## Phase A: Fundament
+## Task 2: Start-Abgleich *(gebaut, Klicktest offen)*
+- [x] Nach dem Login zeigt die Hülle den Lade-Oktopus, bis der Abgleich entschieden ist
+- [x] Hochladen, Herunterladen, Frisch funktionieren; ohne Internet startet die App mit den Gerätedaten
+- [x] `sync_meta` in `LOCAL_DATA_KEYS`
+- Dateien: `src/App.jsx`, `src/logic.js`
 
-### Task 0: Supabase-Projekt einrichten (Anh)
+## Task 3: Laufend sichern *(gebaut, Klicktest offen)*
+- [x] Änderung → nach 2 s im Konto; App-Start ohne Änderung → kein Upload
+- [x] Offline-Änderungen werden bei `online` / Rückkehr in den Tab / Neustart hochgeladen
+- [x] Rückkehr in den Tab holt neueren Konto-Stand, wenn hier nichts Ungesichertes liegt
+- Dateien: `src/App.jsx`
 
-**Beschreibung:** Anh legt das Supabase-Projekt an und stellt den Login per Code ein, Schritt für Schritt nach `docs/specs/supabase-einrichtung.md`. Claude darf keine Konten anlegen und keine Zugangsdaten bei fremden Diensten eingeben.
+## ✅ Checkpoint C1
+- [ ] Laptop → iPhone und zurück, Flugmodus-Test
 
-**Akzeptanzkriterien:**
-- [x] Projekt in Region Frankfurt, E-Mail-Login aktiv
-- [x] Brevo eingerichtet und in Supabase als Custom SMTP eingetragen
-- [x] E-Mail-Vorlagen auf Deutsch mit `{{ .Token }}`, Code gilt 5 Minuten, 6 Stellen
-- [x] Projekt-URL und Publishable key liegen in `.env.local` (lokal) und in Vercel (Preview + Production)
+## Task 4: Auswahl-Dialog *(gebaut, Klicktest offen)*
+- [x] Beide Stände mit Kurzinfo, Rückfrage vor dem Verwerfen, Tastatur und Vorlesen
+- Dateien: `src/App.jsx`
 
-**Prüfung:** Claude prüft nur, ob `.env.local` existiert und die Variablen gesetzt sind, ohne die Werte auszugeben.
-**Abhängigkeiten:** keine · **Umfang:** – (Einstellungen, kein Code)
+## Task 5: Sicherungs-Status *(gebaut, Klicktest offen)*
+- [x] Konto-Panel: „Alles gesichert · vor X Min.“ / „Wird gesichert …“ / „Offline – …“
+- [x] Header-Wolke nur bei ungesichert, mit `aria-label`; neues Icon in `ICON_NAMES`
+- Dateien: `src/App.jsx`
 
----
+## Task 6: Abmelden *(gebaut, Klicktest offen)*
+- [x] Erst sichern; klappt das nicht → Rückfrage in der App
+- [x] Danach alle Nutzerdaten (inkl. alter `…@<id>`-Reste und `data_owner`) aus dem Browser gelöscht
+- Dateien: `src/App.jsx`, `src/logic.js`
 
-### Task 1: Vitest einrichten und reine Funktionen nach `src/logic.js`
-
-**Beschreibung:** `vitest` als Dev-Dependency, Skripte `test` und `test:watch`. `ymd`, `parseYmd`, `addDays`, `daysBetween`, `planDue`, `cleanTasks`, `isYmd` und `BREAKER_CATS` ziehen von `App.jsx` nach `src/logic.js` und werden in `App.jsx` importiert. Die bisherigen Prüfskripte (25 Fälle) werden zu Vitest-Tests in `src/logic.test.js`.
-
-**Akzeptanzkriterien:**
-- [x] `npm test` führt die bisherigen Fälle aus (zusammengefasst in 21 Vitest-Tests, plus Sortierung und Breaker-Daten), alle grün
-- [x] App verhält sich unverändert (Breaker: zerlegen, abhaken; Home: Dein Fokus)
-- [x] `App.jsx` enthält die verschobenen Funktionen nicht mehr doppelt
-
-**Prüfung:** `npm test`, `npm run build`, Lint; Klicktest Breaker (Anh)
-**Abhängigkeiten:** keine · **Dateien:** `package.json`, `src/logic.js`, `src/logic.test.js`, `src/App.jsx` · **Umfang:** S
-
----
-
-## ✅ Checkpoint A
-- [x] Tests grün, App unverändert, Commit auf `feature/v7`
-
----
-
-## Phase B: Login
-
-### Task 2: Supabase anbinden und Konfiguration prüfen
-
-**Beschreibung:** `@supabase/supabase-js` installieren. Client außerhalb der Komponente mit `VITE_SUPABASE_URL` und `VITE_SUPABASE_PUBLISHABLE_KEY`. Fehlen die Werte, zeigt die App eine klare Entwickler-Meldung. Eine `.env.example` mit Platzhaltern kommt ins Repository.
-
-**Akzeptanzkriterien:**
-- [x] Mit `.env.local`: App startet normal (noch ohne Login-Gate)
-- [x] Ohne `.env.local`: verständliche Meldung statt leerer Seite
-- [x] Kein echter Schlüssel im Repository
-
-**Prüfung:** Build mit und ohne Variablen; `git grep` auf Schlüssel
-**Abhängigkeiten:** Task 0, Task 1 · **Dateien:** `package.json`, `src/App.jsx`, `.env.example` · **Umfang:** XS
-
----
-
-### Task 3: Login-Gate: E-Mail → Code → App
-
-**Beschreibung:** Sitzung beim Start laden (`getSession`, `onAuthStateChange`), kurzer Lade-Zustand. Ohne Sitzung nur der Login-Bildschirm: E-Mail eingeben → `signInWithOtp` → Code-Feld (Hinweis „gilt 5 Minuten“) → bei 6 Ziffern automatisch `verifyOtp` → App (bzw. Onboarding bei neuen Nutzern). Neue Funktionen in `logic.js` mit Tests: `isValidEmail`, `cleanCode`, `authErrorText`.
-
-**Akzeptanzkriterien:**
-- [x] Ohne Sitzung ist nichts von der App sichtbar (kein Footer, kein Onboarding)
-- [x] Neue E-Mail → nach Code ins Onboarding; bekannte E-Mail → direkt in die App, lokale Daten unverändert
-- [x] Neuladen → weiterhin angemeldet
-
-**Prüfung:** Vitest für die neuen Funktionen; Klicktest Anh (neue und bekannte E-Mail, Neuladen)
-**Abhängigkeiten:** Task 2 · **Dateien:** `src/App.jsx`, `src/logic.js`, `src/logic.test.js` · **Umfang:** M
-
----
-
-### Task 4: Erneut senden, Fehlerfälle, Barrierefreiheit
-
-**Beschreibung:** „Code erneut senden“ nach 60 s mit Countdown, „Andere E-Mail-Adresse“. Freundliche Meldungen für falschen Code, abgelaufenen Code (mit direktem „Neuen Code senden“), zu viele Anfragen und offline. Labels, `role="alert"` für Fehler, Fokus nach jedem Schritt, `autoComplete="email"` bzw. `"one-time-code"`, `inputMode="numeric"`.
-
-**Akzeptanzkriterien:**
-- [x] Jeder Fehlerfall zeigt einen deutschen Satz, und die App bleibt bedienbar
-- [x] Countdown korrekt, Button erst danach aktiv
-- [x] Komplett mit Tastatur bedienbar, Kontraste mind. 4,5:1
-
-**Prüfung:** Vitest (`authErrorText`, Countdown); Klicktest Anh (falscher Code, Flugmodus, zu früh erneut senden)
-**Abhängigkeiten:** Task 3 · **Dateien:** `src/App.jsx`, `src/logic.js`, `src/logic.test.js` · **Umfang:** S
-
----
-
-### Task 5: Konto-Panel im Header mit Abmelden
-
-**Beschreibung:** Personen-Icon neben der Glocke (`aria-label="Konto"`). Öffnet ein Panel im Stil des Benachrichtigungs-Panels mit der E-Mail-Adresse und „Abmelden“ (`signOut`). Lokale App-Daten bleiben in diesem Modul beim Abmelden erhalten.
-
-**Akzeptanzkriterien:**
-- [x] Panel zeigt die richtige E-Mail, „Abmelden“ führt zum Login-Bildschirm
-- [x] Nach erneutem Login sind die lokalen Daten noch da
-- [x] Glocken-Panel und Konto-Panel sind nie gleichzeitig offen
-
-**Prüfung:** Klicktest Anh
-**Abhängigkeiten:** Task 3 · **Dateien:** `src/App.jsx` · **Umfang:** S
-
----
-
-## ✅ Checkpoint B: Modul `identity` fertig
-- [x] Klicktest-Checkliste (lokal + Vercel-Vorschau, iPhone: Code-Vorschlag der Tastatur)
-- [x] `SPEC-identity.md` abgeglichen, CLAUDE.md um Abschnitt „Login“ ergänzt
-- [x] Push `feature/v7` (Vorschau). **Kein** Merge nach `main` (erst nach allen drei Modulen)
-- [x] Danach: Spezifikation `cloud-sync`
+## ✅ Checkpoint C2: Modul fertig
+- [ ] Klicktest-Checkliste durch Anh, zwei Konten: gegenseitig keine Daten sichtbar
+- [ ] CLAUDE.md aktualisiert, Push `feature/v7`. **Kein** Merge nach `main`

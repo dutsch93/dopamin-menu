@@ -92,7 +92,7 @@ export function authErrorText(err,online=true){
 // Beim Kontowechsel werden die Daten des alten Kontos beiseitegelegt ("<schlüssel>@<id>") und
 // die des neuen Kontos (falls vorhanden) zurückgeholt. Muss VOR dem Laden der App laufen.
 // Rückgabe: "same" (gleiches Konto), "claimed" (erster Login übernimmt vorhandene Daten), "switched" (anderes Konto)
-export const LOCAL_DATA_KEYS=["dopamin_menu_v5","onboarding_complete"];
+export const LOCAL_DATA_KEYS=["dopamin_menu_v5","onboarding_complete","sync_meta"];
 export function switchLocalOwner(store,uid){
   const owner=store.getItem("data_owner");
   if(owner===uid)return"same";
@@ -107,4 +107,58 @@ export function switchLocalOwner(store,uid){
   }
   store.setItem("data_owner",uid);
   return owner?"switched":"claimed";
+}
+
+/* ═══ CLOUD-SYNC (v7, Modul cloud-sync) ═══ */
+// Das Paket, das im Konto gesichert wird: alles aus dopamin_menu_v5 + ob das Onboarding fertig ist.
+export const packData=(store,onboardingComplete)=>({...(store&&typeof store==="object"?store:{}),onboardingComplete:!!onboardingComplete});
+// Paket aus dem Konto wieder aufteilen. Kaputtes (kein Objekt) → null, dann wird es nicht übernommen.
+export function unpackData(pkg){
+  if(!pkg||typeof pkg!=="object"||Array.isArray(pkg))return null;
+  const{onboardingComplete,...store}=pkg;
+  return{store,onboardingComplete:!!onboardingComplete};
+}
+// Hat jemand hier schon wirklich etwas gemacht? Leere Standard-Daten (nur mitgelieferte Menü-Einträge) zählen nicht.
+// defaultItemIds = IDs der mitgelieferten Menü-Einträge
+export function hasRealData(pkg,defaultItemIds=[]){
+  if(!pkg||typeof pkg!=="object")return false;
+  if(pkg.onboardingComplete||Number(pkg.stars)>0)return true;
+  if(Array.isArray(pkg.habits)&&pkg.habits.length)return true;
+  if(Array.isArray(pkg.tasks)&&pkg.tasks.length)return true;
+  if(pkg.customTips&&Object.values(pkg.customTips).some(l=>Array.isArray(l)&&l.length))return true;
+  const items=pkg.items&&typeof pkg.items==="object"?Object.values(pkg.items).flat():[];
+  return items.some(x=>x&&!defaultItemIds.includes(x.id));
+}
+// Kurzinfo für den Auswahl-Dialog
+export const dataSummary=pkg=>({tasks:pkg?.tasks?.length||0,habits:pkg?.habits?.length||0,stars:Number(pkg?.stars)||0});
+// Zeitpunkte vergleichen: Datenbank ("…123456+00:00") und Browser ("…123Z") schreiben sie unterschiedlich
+const ts=s=>Date.parse(s)||0;
+// Was tun beim Start? local = Paket auf dem Gerät, meta = sync_meta {dirty, changedAt, syncedAt},
+// remote = Zeile aus dem Konto {data, updated_at} oder null. Ergebnis:
+// "fresh" (beide leer) · "upload" · "download" · "ask" (beide haben Daten, nie abgeglichen) · "same" (nichts zu tun)
+export function syncDecision(local,meta,remote,defaultItemIds=[]){
+  const here=hasRealData(local,defaultItemIds);
+  const there=!!remote&&hasRealData(remote.data,defaultItemIds);
+  if(!there)return here?"upload":"fresh";
+  if(!here)return"download";
+  if(!meta?.syncedAt)return"ask";                                   // Gerät und Konto unabhängig voneinander befüllt
+  if(!meta.dirty)return ts(remote.updated_at)>ts(meta.syncedAt)?"download":"same";
+  if(ts(remote.updated_at)<=ts(meta.syncedAt))return"upload";        // nur hier geändert
+  return ts(meta.changedAt)>ts(remote.updated_at)?"upload":"download"; // beide geändert: der neuere gewinnt
+}
+// Gleicher Inhalt? Die Reihenfolge der Felder ist egal (die Datenbank speichert sie anders sortiert),
+// sonst würde jeder heruntergeladene Stand als "geändert" gelten und gleich wieder hochgeladen.
+const stable=v=>Array.isArray(v)?v.map(stable):v&&typeof v==="object"?Object.keys(v).sort().reduce((o,k)=>(o[k]=stable(v[k]),o),{}):v;
+export const sameData=(a,b)=>JSON.stringify(stable(a))===JSON.stringify(stable(b));
+// Beim Abmelden zu löschende Browser-Schlüssel: Nutzerdaten, beiseitegelegte Daten anderer Konten ("…@<id>"), data_owner.
+// Die Anmeldung selbst (sb-…) räumt Supabase ab, fremde Schlüssel bleiben.
+export const keysToClear=all=>all.filter(k=>k==="data_owner"||LOCAL_DATA_KEYS.some(d=>k===d||k.startsWith(d+"@")));
+// "gerade eben", "vor 5 Min.", "vor 3 Std.", "am 18.10."
+export function agoText(t,now=Date.now()){
+  if(!t)return"";
+  const min=Math.floor((now-t)/60000);
+  if(min<1)return"gerade eben";
+  if(min<60)return`vor ${min} Min.`;
+  if(min<24*60)return`vor ${Math.floor(min/60)} Std.`;
+  const d=new Date(t);return`am ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}.`;
 }

@@ -1,6 +1,6 @@
 # Spec: cloud-sync – App-Daten im Konto sichern
 
-*Modul 2 von 3, siehe `v7-capability-map.md`. Baut auf `identity` auf. Status: **Entwurf zur Freigabe** (21.10.2026)*
+*Modul 2 von 3, siehe `v7-capability-map.md`. Baut auf `identity` auf. Status: **freigegeben** am 22.10.2026*
 
 ## Ziel
 

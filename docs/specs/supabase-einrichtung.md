@@ -152,6 +152,57 @@ Diese Datei wird **nicht** zu GitHub hochgeladen (`*.local` steht in der `.gitig
 
 ---
 
+## Schritt 8: Tabelle für die App-Daten anlegen (Modul `cloud-sync`, ca. 5 Minuten)
+
+Hier landen später die gesicherten App-Daten, eine Zeile pro Konto. Der Text unten legt die Tabelle an und schaltet die **Zugriffsregeln** ein. Sie sorgen dafür, dass jedes Konto nur seine eigenen Daten sieht.
+
+1. Supabase → links **SQL Editor** → **New query** (bzw. „+“)
+2. Den **gesamten** Text unten hineinkopieren und auf **Run** klicken:
+
+```sql
+-- Dopamin-Menü: gesicherte App-Daten, eine Zeile pro Konto
+create table public.app_data (
+  user_id    uuid primary key default auth.uid() references auth.users(id) on delete cascade,
+  data       jsonb not null,
+  schema     int not null default 5,
+  updated_at timestamptz not null default now(),
+  constraint data_size check (pg_column_size(data) < 1000000)
+);
+
+alter table public.app_data enable row level security;
+
+create policy "eigene Daten lesen"   on public.app_data for select to authenticated using ((select auth.uid()) = user_id);
+create policy "eigene Daten anlegen" on public.app_data for insert to authenticated with check ((select auth.uid()) = user_id);
+create policy "eigene Daten ändern"  on public.app_data for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+create function public.app_data_touch() returns trigger language plpgsql set search_path = '' as $$
+begin new.updated_at := now(); return new; end; $$;
+create trigger app_data_touch before insert or update on public.app_data
+  for each row execute function public.app_data_touch();
+```
+
+   Erwartet: **„Success. No rows returned“**.
+
+   Supabase zeigt eventuell eine Warnung („destructive operation“ o.ä.) und fragt nach. Das ist hier unbedenklich, bestätigen.
+
+3. **Prüfen:** Inhalt des Editors löschen, diesen Text einfügen und **Run**:
+
+```sql
+select
+  (select relrowsecurity from pg_class where oid = 'public.app_data'::regclass) as zugriffsregeln_an,
+  (select count(*) from pg_policies where tablename = 'app_data') as anzahl_regeln;
+```
+
+   Erwartet: **`zugriffsregeln_an` = true** und **`anzahl_regeln` = 3**. Schick mir einfach diese zwei Werte.
+
+**Nicht nötig:** Unter „Table Editor“ musst du nichts anklicken. „Realtime“ für die Tabelle bleibt aus.
+
+✅ *Fertig, wenn die Prüfung true und 3 zeigt.*
+
+> Steht da `relation "app_data" already exists`, wurde die Tabelle schon angelegt. Dann nur die Prüfung (Punkt 3) ausführen.
+
+---
+
 ## Wichtig zum Testen
 
 - **Mit Brevo (Schritt 3)** gehen Codes an jede Adresse, bis zu **30 Mails pro Stunde** (Supabase) bzw. **300 pro Tag** (Brevo, kostenlos).

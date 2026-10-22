@@ -1,68 +1,62 @@
-# Umsetzungsplan v7 – Modul `identity` (Login mit E-Mail und Code)
+# Umsetzungsplan v7 – Modul `cloud-sync` (App-Daten im Konto sichern)
 
-*Stand: 05.10.2026 · Spezifikation: `docs/specs/SPEC-identity.md` · Bauplan: `docs/specs/v7-capability-map.md` · Aufgaben: `tasks/todo.md`*
-*Branch: `feature/v7`. Live erst, wenn alle drei v7-Module fertig sind.*
+*Stand: 22.10.2026 · Spezifikation: `docs/specs/SPEC-cloud-sync.md` · Bauplan: `docs/specs/v7-capability-map.md` · Aufgaben: `tasks/todo.md`*
+*Branch: `feature/v7`. Live erst, wenn alle drei v7-Module fertig sind. Vorheriges Modul: `tasks/archive/v7-identity-*.md`.*
 
 ## Überblick
 
-Vor jeder Nutzung der App steht ein Login mit E-Mail und 6-stelligem Code (Supabase Auth, EU). Die App-Daten bleiben in diesem Modul noch lokal. Dazu kommen ein echtes Test-Werkzeug (Vitest) und eine Datei `src/logic.js` für reine, testbare Funktionen.
+Der Browser bleibt die erste Speicherstelle. Zusätzlich wird alles in einer Supabase-Tabelle `app_data` (eine Zeile pro Konto, JSON) gesichert. Beim Start entscheidet `syncDecision`, ob hoch- oder heruntergeladen oder nachgefragt wird. Während der Nutzung lädt die App 2 s nach jeder Änderung hoch. Beim Abmelden werden die Daten auf dem Gerät gelöscht.
 
 ## Abhängigkeiten
 
 ```
-Task 0 (Anh: Supabase einrichten) ─────────────┐
-Task 1 (Vitest + logic.js) ──┐                 │
-                             ├─ Task 2 (Supabase-Anbindung, Konfig-Prüfung)
-                             │        │
-                             │        └─ Task 3 (Login-Gate: E-Mail → Code → App)
-                             │                 │
-                             │                 ├─ Task 4 (Erneut senden, Fehlerfälle, Barrierefreiheit)
-                             │                 └─ Task 5 (Konto-Panel mit Abmelden)
-                             └─ (Tests wachsen mit jeder Aufgabe)
+Task 0 (Anh: Tabelle anlegen) ───────────────┐
+Task 1 (logic.js: Entscheidung, Kurzinfo) ───┼─ Task 2 (Start-Abgleich in der Hülle App)
+                                             │        │
+                                             │        ├─ Task 3 (Laufend sichern, offline, Rückkehr in den Tab)
+                                             │        │        │
+                                             │        │        └─ Task 5 (Status: Konto-Panel + Header-Wolke)
+                                             │        ├─ Task 4 (Auswahl-Dialog bei Konflikt)
+                                             │        └─ Task 6 (Abmelden: sichern, dann löschen)
 ```
-
-Task 1 hat keinen Bezug zum Login und senkt das Risiko. Er kommt zuerst, damit alle folgenden Aufgaben echte Tests haben. Task 0 erledigt Anh parallel.
 
 ## Architektur-Entscheidungen
 
-- **Supabase-Client einmal außerhalb der Komponente** erzeugen (`createClient(url, publishableKey)`), mit `import.meta.env`. Fehlen die Variablen, zeigt die App eine Entwickler-Meldung statt abzustürzen.
-- **Sitzung:** beim Start `getSession()`, danach `onAuthStateChange`. Solange die Sitzung lädt, erscheint ein kurzer Lade-Zustand (Maskottchen), damit der Login-Bildschirm nicht kurz aufblitzt.
-- **Login-Gate ganz oben im JSX:** Ohne Sitzung wird nur der Login-Bildschirm gerendert, kein Onboarding, kein Footer. Bestehende Logik bleibt unverändert darunter.
-- **Hooks-Regel:** Alle bestehenden `useState`/`useEffect` bleiben unbedingt aufgerufen. Das Gate entscheidet nur, *was gerendert wird*, nicht ob Hooks laufen.
-- **Reine Funktionen in `src/logic.js`:** `isValidEmail`, `cleanCode` (nur Ziffern, max. 6), `authErrorText(error)`, `secondsLeft(...)`. Dazu ziehen die vorhandenen Funktionen `ymd`, `parseYmd`, `addDays`, `daysBetween`, `planDue`, `cleanTasks` und `BREAKER_CATS` um. Die Oberfläche bleibt in `App.jsx`.
-- **Fehlertexte:** Supabase-Fehler werden über Code/Status/Meldung auf wenige deutsche Sätze abgebildet: falscher Code, abgelaufen, zu viele Anfragen, offline, unbekannt.
+- **Hülle `App` macht den Abgleich**, bevor `DopaminMenu` erscheint. `DopaminMenu` liest und schreibt weiter nur den Browser-Speicher. So bleibt die bestehende App fast unverändert.
+- **Paket:** Inhalt von `dopamin_menu_v5` plus `onboardingComplete`. Packen und Entpacken sind reine Funktionen in `logic.js`.
+- **Ungesichert-Markierung in `sv()`:** Nur wenn sich der gespeicherte Text wirklich ändert, wird `dirty` gesetzt. Sonst würde jeder App-Start (der Speicher-Effekt läuft beim Laden) einen Upload auslösen.
+- **Sync-Steuerung als kleines Modul-Objekt in `App.jsx`** (außerhalb von React): Warteschlange mit 2-s-Verzögerung, Status-Abonnement für das Konto-Panel. Kein neuer Context, keine Dependency.
+- **Neuaufbau nach Download:** Die Hülle erhöht einen Zähler im `key` von `DopaminMenu`, dann liest die App die neuen Daten.
+- **Zeit:** `updated_at` kommt von der Datenbank. `changedAt` (Gerät) wird nur im seltenen Fall „beide geändert“ verglichen.
 
 ## Aufgaben
 
 ### Phase A: Fundament
-- [x] Task 0: Supabase-Projekt einrichten (**Anh**, mit Anleitung `docs/specs/supabase-einrichtung.md`)
-- [x] Task 1: Vitest einrichten, reine Funktionen nach `src/logic.js`, Prüfskripte als echte Tests
+- [ ] Task 0: Tabelle `app_data` mit Zugriffsregeln anlegen (**Anh**, Anleitung Schritt 8 in `docs/specs/supabase-einrichtung.md`)
+- [ ] Task 1: `hasRealData`, `dataSummary`, `syncDecision`, `packData`/`unpackData` in `logic.js` mit Tests
 
-### Checkpoint A
-- [x] `npm test` grün, App verhält sich unverändert (kurzer Klicktest Breaker)
+### Phase B: Abgleich
+- [ ] Task 2: Start-Abgleich in der Hülle `App` (hoch, runter, frisch)
+- [ ] Task 3: Laufendes Sichern (2 s), offline nachholen, beim Zurückkehren neuen Stand holen
 
-### Phase B: Login
-- [x] Task 2: Supabase anbinden, Konfigurations-Prüfung, `.env.example`
-- [x] Task 3: Login-Gate: E-Mail → Code → App (glücklicher Weg)
-- [x] Task 4: Erneut senden mit Countdown, Fehlerfälle, Barrierefreiheit
-- [x] Task 5: Konto-Panel im Header mit Abmelden
+### Checkpoint C1
+- [ ] Laptop und iPhone sehen dieselben Daten, offline gemachte Änderungen kommen an
 
-### Checkpoint B (Modul `identity` fertig)
-- [x] Klicktest-Checkliste durch Anh (lokal und in der Vercel-Vorschau, auch iPhone)
-- [x] Spezifikation abgeglichen, CLAUDE.md um „Login“ ergänzt
-- [x] Danach: Spezifikation `cloud-sync`
+### Phase C: Oberfläche
+- [ ] Task 4: Auswahl-Dialog bei Konflikt
+- [ ] Task 5: Status im Konto-Panel + Header-Wolke
+- [ ] Task 6: Abmelden: sichern, dann Daten auf dem Gerät löschen
 
-## Risiken und Gegenmaßnahmen
+### Checkpoint C2: Modul `cloud-sync` fertig
+- [ ] Klicktest-Checkliste (Anh), Zugriffsregeln mit zwei Konten geprüft
+- [ ] CLAUDE.md aktualisiert, Push `feature/v7`, **kein** Merge nach `main`
+
+## Risiken
 
 | Risiko | Auswirkung | Gegenmaßnahme |
 |---|---|---|
-| Codes landen ohne eigene Domain im Spam | Mittel (Test-UX) | Versand über Brevo (eigenes SMTP, nötig für Vorlagen mit Code). In der Testphase Spam-Ordner prüfen. **Vor dem Livegang:** eigene Domain in Brevo bestätigen. |
-| 5-Minuten-Code läuft während einer Ablenkung ab | Mittel (UX) | Gültigkeit sichtbar anzeigen, eigene Meldung mit direktem „Neuen Code senden“ |
-| Schlüssel landet im Git | Hoch | Nur `.env.local` (durch `*.local` ignoriert), `.env.example` ohne echte Werte, Prüfung vor jedem Commit (`git grep`) |
-| Login-Gate bricht bestehende Hooks/Onboarding | Hoch | Hooks unverändert lassen, Gate nur im Rendering, Klicktest von Onboarding nach Login |
-| Bestehende Live-Nutzer werden ausgesperrt | Hoch | v7 geht erst live, wenn `cloud-sync` die lokalen Daten übernimmt |
-| App-Paket wächst durch supabase-js (85 → 142 KB gzip) | Niedrig (ca. 0,3 s mehr Ladezeit auf 4G) | Vorerst hinnehmen. Später Supabase erst nach dem Start nachladen (Code-Splitting), falls nötig. |
-| Claude kann den echten Login nicht selbst testen | Mittel | Klare Checkliste für Anh; alles andere automatisch mit Vitest |
-
-## Offene Fragen
-- Eigene Domain für den E-Mail-Versand (vor dem Livegang, siehe Spezifikation)
+| Zugriffsregeln fehlen oder sind falsch | Hoch (fremde Daten lesbar) | SQL fertig vorgegeben, Prüfabfrage in der Anleitung, Test mit zwei Konten |
+| Endlosschleife Download → Speicher-Effekt → Upload | Mittel | `dirty` nur bei echter Änderung, Test dafür |
+| Gleichzeitiges Bearbeiten auf zwei Geräten | Niedrig | Neuerer Stand gewinnt (bewusst, Bauplan) |
+| Supabase-Pause (kostenloser Plan) | Hoch nach Livegang | vor Livegang lösen (siehe Spezifikation) |
+| Datenverlust beim Abmelden offline | Mittel | Rückfrage, vorher Sicherungsversuch |
